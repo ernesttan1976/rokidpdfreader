@@ -298,14 +298,44 @@
         }
 
         .pdf-container.portrait-mode {
+            display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: flex-start;
+            overflow: auto;
+            overflow-x: auto;
+            overflow-y: auto;
+            padding: 24px;
+            min-height: 100%;
+            width: 100%;
+        }
+
+        .pdf-container.portrait-mode .pdf-page {
+            flex-shrink: 0;
+            max-width: none;
+            width: auto;
+            margin-bottom: 16px;
         }
 
         .pdf-container.landscape-mode {
-            flex-direction: column;
-            align-items: center;
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+            justify-content: flex-start;
+            gap: 24px;
+            overflow: auto;
+            overflow-x: auto;
             overflow-y: auto;
+            padding: 24px;
+            min-height: 100%;
+            width: 100%;
+        }
+
+        .pdf-container.landscape-mode .pdf-page {
+            flex-shrink: 0;
+            max-width: none;
+            width: auto;
+            min-width: 400px;
         }
 
         .pdf-page {
@@ -317,7 +347,9 @@
         }
 
         .pdf-container.portrait-mode .pdf-page {
-            max-width: 85%;
+            flex-shrink: 0;
+            max-width: none;
+            width: auto;
             margin-bottom: 16px;
         }
 
@@ -332,8 +364,10 @@
         }
 
         .pdf-container.landscape-mode .pdf-page {
-            max-width: calc(50% - 12px);
             flex-shrink: 0;
+            max-width: none;
+            width: auto;
+            min-width: 400px;
         }
 
         .pdf-page canvas {
@@ -1323,24 +1357,26 @@
                 this.pdfContainer.innerHTML = '';
                 
                 if (this.viewMode === 'portrait') {
-                    await this.renderPage(this.currentPage);
-                } else {
-                    // Landscape mode - render two pages side by side
-                    const pagesContainer = document.createElement('div');
-                    pagesContainer.style.display = 'flex';
-                    pagesContainer.style.gap = '24px';
-                    pagesContainer.style.justifyContent = 'center';
-                    pagesContainer.style.alignItems = 'flex-start';
-                    this.pdfContainer.appendChild(pagesContainer);
+                    // Portrait mode - render single page with full overflow
+                    this.pdfContainer.style.flexDirection = 'column';
+                    this.pdfContainer.style.justifyContent = 'flex-start';
+                    this.pdfContainer.style.alignItems = 'center';
                     
-                    await this.renderPageInContainer(this.currentPage, pagesContainer);
+                    await this.renderPageForPortrait(this.currentPage);
+                } else {
+                    // Landscape mode - render two pages side by side with full overflow
+                    this.pdfContainer.style.flexDirection = 'row';
+                    this.pdfContainer.style.justifyContent = 'flex-start';
+                    this.pdfContainer.style.alignItems = 'flex-start';
+                    
+                    await this.renderPageForLandscape(this.currentPage);
                     if (this.currentPage < this.totalPages) {
-                        await this.renderPageInContainer(this.currentPage + 1, pagesContainer);
+                        await this.renderPageForLandscape(this.currentPage + 1);
                     }
                 }
             }
 
-            async renderPage(pageNum) {
+            async renderPageForPortrait(pageNum) {
                 if (pageNum < 1 || pageNum > this.totalPages) return;
                 
                 try {
@@ -1355,6 +1391,10 @@
                     
                     const pageContainer = document.createElement('div');
                     pageContainer.className = 'pdf-page';
+                    pageContainer.style.flexShrink = '0';
+                    pageContainer.style.maxWidth = 'none';
+                    pageContainer.style.width = 'auto';
+                    pageContainer.style.marginBottom = '16px';
                     
                     const pageNumber = document.createElement('div');
                     pageNumber.className = 'page-number';
@@ -1374,7 +1414,7 @@
                 }
             }
 
-            async renderPageInContainer(pageNum, container) {
+            async renderPageForLandscape(pageNum) {
                 if (pageNum < 1 || pageNum > this.totalPages) return;
                 
                 try {
@@ -1389,6 +1429,9 @@
                     
                     const pageContainer = document.createElement('div');
                     pageContainer.className = 'pdf-page';
+                    pageContainer.style.flexShrink = '0';
+                    pageContainer.style.maxWidth = 'none';
+                    pageContainer.style.width = 'auto';
                     
                     const pageNumber = document.createElement('div');
                     pageNumber.className = 'page-number';
@@ -1396,7 +1439,7 @@
                     
                     pageContainer.appendChild(canvas);
                     pageContainer.appendChild(pageNumber);
-                    container.appendChild(pageContainer);
+                    this.pdfContainer.appendChild(pageContainer);
                     
                     await page.render({
                         canvasContext: context,
