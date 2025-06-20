@@ -2067,24 +2067,6 @@
                 const existingBookmarks = JSON.parse(localStorage.getItem('pdfBookmarks') || '{}');
                 if (Object.keys(existingBookmarks).length === 0) {
                     const testBookmarks = {
-                        'example_manual.pdf': {
-                            page: 15,
-                            totalPages: 120,
-                            lastRead: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
-                            fileSize: 2048000
-                        },
-                        'research_paper.pdf': {
-                            page: 8,
-                            totalPages: 32,
-                            lastRead: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
-                            fileSize: 1024000
-                        },
-                        'user_guide.pdf': {
-                            page: 45,
-                            totalPages: 67,
-                            lastRead: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 1 week ago
-                            fileSize: 512000
-                        }
                     };
                     localStorage.setItem('pdfBookmarks', JSON.stringify(testBookmarks));
                     this.updateRecentFiles();
