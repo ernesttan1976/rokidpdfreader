@@ -688,6 +688,8 @@
         /* Auto-hide UI elements */
         .ui-element {
             transition: opacity 0.3s ease, transform 0.3s ease;
+            opacity: 1;
+            pointer-events: auto;
         }
 
         .ui-element.hidden {
@@ -695,20 +697,29 @@
             pointer-events: none;
         }
 
-        .header.hidden {
+        .header.ui-element.hidden {
+            opacity: 0;
             transform: translateY(-100%);
         }
 
-        .fab.hidden {
+        .fab.ui-element.hidden {
+            opacity: 0;
             transform: translateY(20px) scale(0.8);
         }
 
-        .nav-controls.hidden {
+        .nav-controls.ui-element.hidden {
+            opacity: 0;
             transform: translateY(20px) scale(0.8);
         }
 
-        .hamburger-menu.hidden {
+        .hamburger-menu.ui-element.hidden {
+            opacity: 0;
             transform: scale(0.8);
+        }
+
+        .mode-indicator.ui-element.hidden {
+            opacity: 0;
+            transform: translateX(-20px) scale(0.8);
         }
 
         /* Show UI on hover/touch areas */
@@ -1268,12 +1279,19 @@
                 this.modeIndicator.classList.add('show');
                 this.progressBar.classList.add('show');
                 
-                // Add UI classes for auto-hide
+                // Add UI classes for auto-hide and ensure they start visible
                 this.header.classList.add('ui-element');
                 this.hamburgerMenu.classList.add('ui-element');
                 this.fab.classList.add('ui-element');
                 this.navControls.classList.add('ui-element');
                 this.modeIndicator.classList.add('ui-element');
+                
+                // Make sure all UI elements start visible
+                this.header.classList.remove('hidden');
+                this.hamburgerMenu.classList.remove('hidden');
+                this.fab.classList.remove('hidden');
+                this.navControls.classList.remove('hidden');
+                this.modeIndicator.classList.remove('hidden');
                 
                 this.initializeAutoHide();
                 
@@ -1491,10 +1509,21 @@
 
             toggleSettings() {
                 this.settingsPanel.classList.toggle('open');
+                
+                // Show UI when opening settings, and manage timer based on panel state
+                if (this.settingsPanel.classList.contains('open')) {
+                    this.showUI();
+                    clearTimeout(this.uiHideTimer); // Don't hide UI while settings are open
+                } else {
+                    this.startUIHideTimer(); // Restart timer when closing settings
+                }
             }
 
             closeSettingsPanel() {
                 this.settingsPanel.classList.remove('open');
+                
+                // Restart UI hide timer when closing settings
+                this.startUIHideTimer();
             }
 
             saveBookmark() {
@@ -1672,12 +1701,18 @@
                 if (!this.currentPDF) return;
                 
                 this.uiVisible = true;
+                
+                // Clear any existing timer
+                clearTimeout(this.uiHideTimer);
+                
+                // Show all UI elements
                 this.header.classList.remove('hidden');
                 this.hamburgerMenu.classList.remove('hidden');
                 this.fab.classList.remove('hidden');
                 this.navControls.classList.remove('hidden');
                 this.modeIndicator.classList.remove('hidden');
                 
+                // Restart the hide timer
                 this.startUIHideTimer();
             }
 
@@ -1685,6 +1720,8 @@
                 if (!this.currentPDF || this.settingsPanel.classList.contains('open')) return;
                 
                 this.uiVisible = false;
+                
+                // Hide all UI elements with fade animation
                 this.header.classList.add('hidden');
                 this.hamburgerMenu.classList.add('hidden');
                 this.fab.classList.add('hidden');
@@ -1693,7 +1730,13 @@
             }
 
             startUIHideTimer() {
+                // Clear any existing timer
                 clearTimeout(this.uiHideTimer);
+                
+                // Don't start timer if settings panel is open
+                if (this.settingsPanel.classList.contains('open')) return;
+                
+                // Start new timer
                 this.uiHideTimer = setTimeout(() => {
                     this.hideUI();
                 }, this.UI_HIDE_DELAY);
