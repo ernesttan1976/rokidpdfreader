@@ -916,6 +916,10 @@
         </div>
         
         <div class="header-controls">
+            <button class="btn" id="settingsBtn" style="display: none;">
+                <span>⚙️</span>
+                <span>Settings</span>
+            </button>
             <button class="hamburger-menu" id="hamburgerMenu" style="display: none;">
                 <span></span>
                 <span></span>
@@ -1015,7 +1019,7 @@
                 <span>Landscape Zoom Level</span>
             </label>
             <input type="range" class="setting-control zoom-slider" id="landscapeZoom" min="40" max="300" value="100">
-            <div class="zoom-value" id="landscapeZoomValue">75%</div>
+            <div class="zoom-value" id="landscapeZoomValue">100%</div>
         </div>
 
         <div class="setting-group">
@@ -1168,8 +1172,10 @@
                 
                 // Controls
                 this.fab.addEventListener('click', () => this.toggleViewMode());
-                this.hamburgerMenu = document.getElementById('hamburgerMenu');
-                this.hamburgerMenu.addEventListener('click', () => this.toggleSettings());
+                this.hamburgerMenu.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.toggleSettings();
+                });
                 this.closeSettings.addEventListener('click', () => this.closeSettingsPanel());
                 
                 // Navigation
@@ -1185,9 +1191,19 @@
                 // Keyboard shortcuts
                 document.addEventListener('keydown', (e) => this.handleKeyboard(e));
                 
+                // Settings button
+                this.settingsBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.toggleSettings();
+                });
+                
                 // Close settings when clicking outside
                 document.addEventListener('click', (e) => {
-                    if (!this.settingsPanel.contains(e.target) && e.target !== this.settingsBtn) {
+                    if (!this.settingsPanel.contains(e.target) && 
+                        e.target !== this.settingsBtn && 
+                        e.target !== this.hamburgerMenu &&
+                        !this.settingsBtn.contains(e.target) &&
+                        !this.hamburgerMenu.contains(e.target)) {
                         this.closeSettingsPanel();
                     }
                 });
@@ -1273,6 +1289,7 @@
                 this.welcomeScreen.style.display = 'none';
                 this.pdfViewer.style.display = 'block';
                 this.bookInfo.style.display = 'flex';
+                this.settingsBtn.style.display = 'flex';
                 this.hamburgerMenu.style.display = 'flex';
                 this.fab.classList.add('show');
                 this.navControls.classList.add('show');
@@ -1508,19 +1525,26 @@
             }
 
             toggleSettings() {
+                console.log('Toggle settings called'); // Debug log
                 this.settingsPanel.classList.toggle('open');
+                
+                // Toggle hamburger menu animation
+                this.hamburgerMenu.classList.toggle('active');
                 
                 // Show UI when opening settings, and manage timer based on panel state
                 if (this.settingsPanel.classList.contains('open')) {
+                    console.log('Settings panel opened'); // Debug log
                     this.showUI();
                     clearTimeout(this.uiHideTimer); // Don't hide UI while settings are open
                 } else {
+                    console.log('Settings panel closed'); // Debug log
                     this.startUIHideTimer(); // Restart timer when closing settings
                 }
             }
 
             closeSettingsPanel() {
                 this.settingsPanel.classList.remove('open');
+                this.hamburgerMenu.classList.remove('active');
                 
                 // Restart UI hide timer when closing settings
                 this.startUIHideTimer();
@@ -1602,6 +1626,7 @@
                     this.pdfViewer.style.display = 'none';
                     this.bookInfo.style.display = 'none';
                     this.settingsBtn.style.display = 'none';
+                    this.hamburgerMenu.style.display = 'none';
                     this.fab.classList.remove('show');
                     this.navControls.classList.remove('show');
                     this.modeIndicator.classList.remove('show');
