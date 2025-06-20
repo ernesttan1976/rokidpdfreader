@@ -1019,10 +1019,6 @@
         </div>
         
         <div class="header-controls">
-            <button class="btn" id="settingsBtn" style="display: none;">
-                <span>⚙️</span>
-                <span>Settings</span>
-            </button>
             <button class="hamburger-menu" id="hamburgerMenu" style="display: none;">
                 <span></span>
                 <span></span>
@@ -1158,6 +1154,13 @@
         </div>
 
         <div class="setting-group">
+            <button class="btn" id="openNewFileBtn" style="width: 100%; background: rgba(0,212,170,0.1); border-color: rgba(0,212,170,0.3); color: #00d4aa;">
+                <span>📂</span>
+                <span>Open New File</span>
+            </button>
+        </div>
+
+        <div class="setting-group">
             <button class="btn" id="clearDataBtn" style="width: 100%; background: rgba(255,69,58,0.1); border-color: rgba(255,69,58,0.3); color: #ff453a;">
                 <span>🗑️</span>
                 <span>Clear All Data</span>
@@ -1245,7 +1248,6 @@
 
                 this.hamburgerMenu = document.getElementById('hamburgerMenu');
                 this.header = document.querySelector('.header'); // Add this line
-                this.settingsBtn = document.getElementById('settingsBtn');
                 this.settingsPanel = document.getElementById('settingsPanel');
                 this.closeSettings = document.getElementById('closeSettings');
                 
@@ -1274,6 +1276,7 @@
                 this.defaultMode = document.getElementById('defaultMode');
                 this.bookmarkInfo = document.getElementById('bookmarkInfo');
                 this.storageInfo = document.getElementById('storageInfo');
+                this.openNewFileBtn = document.getElementById('openNewFileBtn');
                 this.clearDataBtn = document.getElementById('clearDataBtn');
             }
 
@@ -1304,6 +1307,7 @@
                 this.portraitZoom.addEventListener('input', (e) => this.updateZoom('portrait', e.target.value));
                 this.landscapeZoom.addEventListener('input', (e) => this.updateZoom('landscape', e.target.value));
                 this.defaultMode.addEventListener('change', (e) => this.setDefaultMode(e.target.value));
+                this.openNewFileBtn.addEventListener('click', () => this.openNewFile());
                 this.clearDataBtn.addEventListener('click', () => this.clearAllData());
                 
                 // Keyboard shortcuts
@@ -1313,18 +1317,12 @@
                 this.scrollbarContainer.addEventListener('click', (e) => this.handleScrollbarClick(e));
                 this.scrollbarThumb.addEventListener('mousedown', (e) => this.handleScrollbarDrag(e));
                 
-                // Settings button
-                this.settingsBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.toggleSettings();
-                });
+
                 
                 // Close settings when clicking outside
                 document.addEventListener('click', (e) => {
                     if (!this.settingsPanel.contains(e.target) && 
-                        e.target !== this.settingsBtn && 
                         e.target !== this.hamburgerMenu &&
-                        !this.settingsBtn.contains(e.target) &&
                         !this.hamburgerMenu.contains(e.target)) {
                         this.closeSettingsPanel();
                     }
@@ -1411,7 +1409,6 @@
                 this.welcomeScreen.style.display = 'none';
                 this.pdfViewer.style.display = 'block';
                 this.bookInfo.style.display = 'flex';
-                this.settingsBtn.style.display = 'flex';
                 this.hamburgerMenu.style.display = 'flex';
                 this.fab.classList.add('show');
                 this.navControls.classList.add('show');
@@ -1921,7 +1918,6 @@
                     this.welcomeScreen.style.display = 'flex';
                     this.pdfViewer.style.display = 'none';
                     this.bookInfo.style.display = 'none';
-                    this.settingsBtn.style.display = 'none';
                     this.hamburgerMenu.style.display = 'none';
                     this.fab.classList.remove('show');
                     this.navControls.classList.remove('show');
@@ -2160,6 +2156,14 @@
                 if (hours > 0) return `${hours}h ago`;
                 if (minutes > 0) return `${minutes}m ago`;
                 return 'Just now';
+            }
+
+            openNewFile() {
+                // Close settings panel
+                this.closeSettingsPanel();
+                
+                // Trigger file input
+                this.fileInput.click();
             }
 
 
