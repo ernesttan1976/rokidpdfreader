@@ -375,6 +375,8 @@
             height: auto;
             border-radius: 12px;
             display: block;
+            transform-origin: center center;
+            transition: none;
         }
 
         .page-number {
@@ -1157,6 +1159,8 @@
                 this.panY = 0;
                 this.lastPanX = 0;
                 this.lastPanY = 0;
+                this.panDebounceTimer = null;
+                this.highResScale = 2; // High resolution scaling factor
 
 
             }
@@ -1365,10 +1369,8 @@
             async renderCurrentPages() {
                 if (!this.currentPDF) return;
                 
-                // Store current transform state
+                // Store current zoom level but reset pan position for new pages
                 const previousScale = this.currentScale;
-                const previousPanX = this.panX;
-                const previousPanY = this.panY;
                 
                 this.pdfContainer.innerHTML = '';
                 
@@ -1380,21 +1382,18 @@
                     
                     await this.renderPageForPortrait(this.currentPage);
                 } else {
-                    // Landscape mode - render two pages side by side with full overflow
+                    // Landscape mode - render dual pages as single canvas
                     this.pdfContainer.style.flexDirection = 'row';
                     this.pdfContainer.style.justifyContent = 'flex-start';
                     this.pdfContainer.style.alignItems = 'flex-start';
                     
-                    await this.renderPageForLandscape(this.currentPage);
-                    if (this.currentPage < this.totalPages) {
-                        await this.renderPageForLandscape(this.currentPage + 1);
-                    }
+                    await this.renderDualPageCanvas();
                 }
                 
-                // Restore transform state
+                // Restore zoom level but reset pan position to center
                 this.currentScale = previousScale;
-                this.panX = previousPanX;
-                this.panY = previousPanY;
+                this.panX = 0;
+                this.panY = 0;
                 this.applyTransform();
             }
 
@@ -1403,7 +1402,7 @@
                 
                 try {
                     const page = await this.currentPDF.getPage(pageNum);
-                    const scale = this.zoomLevels[this.viewMode] / 100;
+                    const scale = (this.zoomLevels[this.viewMode] / 100) * this.highResScale;
                     const viewport = page.getViewport({ scale });
                     
                     const canvas = document.createElement('canvas');
@@ -1411,12 +1410,20 @@
                     canvas.height = viewport.height;
                     canvas.width = viewport.width;
                     
+                    // Set display size for crisp rendering - remove width constraint
+                    canvas.style.width = (viewport.width / this.highResScale) + 'px';
+                    canvas.style.height = (viewport.height / this.highResScale) + 'px';
+                    canvas.style.maxWidth = 'none';
+                    canvas.style.maxHeight = 'none';
+                    canvas.style.transform = 'none';
+                    
                     const pageContainer = document.createElement('div');
                     pageContainer.className = 'pdf-page';
                     pageContainer.style.flexShrink = '0';
                     pageContainer.style.maxWidth = 'none';
                     pageContainer.style.width = 'auto';
                     pageContainer.style.marginBottom = '16px';
+                    pageContainer.style.overflow = 'visible';
                     
                     const pageNumber = document.createElement('div');
                     pageNumber.className = 'page-number';
@@ -1436,41 +1443,74 @@
                 }
             }
 
-            async renderPageForLandscape(pageNum) {
-                if (pageNum < 1 || pageNum > this.totalPages) return;
+            async renderDualPageCanvas() {
+                if (!this.currentPDF) return;
                 
                 try {
-                    const page = await this.currentPDF.getPage(pageNum);
-                    const scale = this.zoomLevels[this.viewMode] / 100;
-                    const viewport = page.getViewport({ scale });
+                    const page1 = await this.currentPDF.getPage(this.currentPage);
+                    const page2 = this.currentPage < this.totalPages ? await this.currentPDF.getPage(this.currentPage + 1) : null;
+                    
+                    const scale = (this.zoomLevels[this.viewMode] / 100) * this.highResScale;
+                    const viewport1 = page1.getViewport({ scale });
+                    const viewport2 = page2 ? page2.getViewport({ scale }) : null;
+                    
+                    // Calculate combined canvas dimensions
+                    const totalWidth = viewport1.width + (viewport2 ? viewport2.width : 0) + (page2 ? 20 * this.highResScale : 0); // 20px gap
+                    const maxHeight = Math.max(viewport1.height, viewport2 ? viewport2.height : 0);
                     
                     const canvas = document.createElement('canvas');
                     const context = canvas.getContext('2d');
-                    canvas.height = viewport.height;
-                    canvas.width = viewport.width;
+                    canvas.width = totalWidth;
+                    canvas.height = maxHeight;
+                    
+                    // Set display size for crisp rendering - remove constraints
+                    canvas.style.width = (totalWidth / this.highResScale) + 'px';
+                    canvas.style.height = (maxHeight / this.highResScale) + 'px';
+                    canvas.style.maxWidth = 'none';
+                    canvas.style.maxHeight = 'none';
+                    canvas.style.transform = 'none';
                     
                     const pageContainer = document.createElement('div');
-                    pageContainer.className = 'pdf-page';
+                    pageContainer.className = 'pdf-page dual-page';
                     pageContainer.style.flexShrink = '0';
                     pageContainer.style.maxWidth = 'none';
                     pageContainer.style.width = 'auto';
+                    pageContainer.style.overflow = 'visible';
                     
                     const pageNumber = document.createElement('div');
                     pageNumber.className = 'page-number';
-                    pageNumber.textContent = pageNum;
+                    const endPage = Math.min(this.currentPage + 1, this.totalPages);
+                    pageNumber.textContent = this.currentPage === endPage ? this.currentPage : `${this.currentPage}-${endPage}`;
                     
                     pageContainer.appendChild(canvas);
                     pageContainer.appendChild(pageNumber);
                     this.pdfContainer.appendChild(pageContainer);
                     
-                    await page.render({
+                    // Render first page
+                    await page1.render({
                         canvasContext: context,
-                        viewport: viewport
+                        viewport: viewport1,
+                        transform: [1, 0, 0, 1, 0, 0]
                     }).promise;
                     
+                    // Render second page if it exists
+                    if (page2 && viewport2) {
+                        await page2.render({
+                            canvasContext: context,
+                            viewport: viewport2,
+                            transform: [1, 0, 0, 1, viewport1.width + (20 * this.highResScale), 0]
+                        }).promise;
+                    }
+                    
                 } catch (error) {
-                    console.error('Error rendering page:', error);
+                    console.error('Error rendering dual page:', error);
                 }
+            }
+            
+            async renderPageForLandscape(pageNum) {
+                // This method is now replaced by renderDualPageCanvas for landscape mode
+                // Keeping for compatibility but it won't be used
+                console.warn('renderPageForLandscape is deprecated, use renderDualPageCanvas instead');
             }
 
             toggleViewMode() {
@@ -1479,10 +1519,8 @@
             }
 
             setViewMode(mode) {
-                // Store current transform state
+                // Store current zoom level but reset pan when switching modes
                 const previousScale = this.currentScale;
-                const previousPanX = this.panX;
-                const previousPanY = this.panY;
                 
                 this.viewMode = mode;
                 this.pdfContainer.className = `pdf-container ${mode}-mode`;
@@ -1496,10 +1534,10 @@
                 this.fab.textContent = mode === 'portrait' ? '📚' : '📖';
                 
                 this.renderCurrentPages().then(() => {
-                    // Restore transform state after rendering
+                    // Restore zoom level but reset pan position to center
                     this.currentScale = previousScale;
-                    this.panX = previousPanX;
-                    this.panY = previousPanY;
+                    this.panX = 0;
+                    this.panY = 0;
                     this.applyTransform();
                 });
             }
@@ -1967,7 +2005,19 @@
                     e.preventDefault();
                     const deltaX = e.touches[0].clientX - this.lastPanX;
                     const deltaY = e.touches[0].clientY - this.lastPanY;
-                    this.adjustPan(deltaX, deltaY);
+                    
+                    // Apply immediate visual feedback
+                    this.panX += deltaX;
+                    this.panY += deltaY;
+                    
+                    // Constrain panning to reasonable bounds
+                    const maxPan = 300 * this.currentScale;
+                    this.panX = Math.max(-maxPan, Math.min(maxPan, this.panX));
+                    this.panY = Math.max(-maxPan, Math.min(maxPan, this.panY));
+                    
+                    // Apply transform immediately for smooth feel
+                    this.applyTransform();
+                    
                     this.lastPanX = e.touches[0].clientX;
                     this.lastPanY = e.touches[0].clientY;
                 }
@@ -1998,7 +2048,19 @@
                     e.preventDefault();
                     const deltaX = e.clientX - this.lastPanX;
                     const deltaY = e.clientY - this.lastPanY;
-                    this.adjustPan(deltaX, deltaY);
+                    
+                    // Apply immediate visual feedback
+                    this.panX += deltaX;
+                    this.panY += deltaY;
+                    
+                    // Constrain panning to reasonable bounds
+                    const maxPan = 300 * this.currentScale;
+                    this.panX = Math.max(-maxPan, Math.min(maxPan, this.panX));
+                    this.panY = Math.max(-maxPan, Math.min(maxPan, this.panY));
+                    
+                    // Apply transform immediately for smooth feel
+                    this.applyTransform();
+                    
                     this.lastPanX = e.clientX;
                     this.lastPanY = e.clientY;
                 }
@@ -2027,8 +2089,14 @@
             }
 
             adjustZoom(scaleFactor) {
-                const newScale = Math.max(0.5, Math.min(3, this.currentScale * scaleFactor));
+                const newScale = Math.max(0.5, Math.min(5, this.currentScale * scaleFactor));
                 this.currentScale = newScale;
+                
+                // Constrain pan when zooming to prevent getting lost
+                const maxPan = 500 * this.currentScale;
+                this.panX = Math.max(-maxPan, Math.min(maxPan, this.panX));
+                this.panY = Math.max(-maxPan, Math.min(maxPan, this.panY));
+                
                 this.applyTransform();
             }
 
@@ -2037,18 +2105,32 @@
                 this.panY += deltaY;
                 
                 // Constrain panning to reasonable bounds
-                const maxPan = 200 * this.currentScale;
+                const maxPan = 300 * this.currentScale;
                 this.panX = Math.max(-maxPan, Math.min(maxPan, this.panX));
                 this.panY = Math.max(-maxPan, Math.min(maxPan, this.panY));
                 
-                this.applyTransform();
+                // Debounce the transform application for smoother panning
+                clearTimeout(this.panDebounceTimer);
+                this.panDebounceTimer = setTimeout(() => {
+                    this.applyTransform();
+                }, 16); // ~60fps
             }
 
             applyTransform() {
                 const pages = this.pdfContainer.querySelectorAll('.pdf-page');
                 pages.forEach(page => {
+                    // Apply transform to the page container, not individual canvases
                     page.style.transform = `scale(${this.currentScale}) translate(${this.panX / this.currentScale}px, ${this.panY / this.currentScale}px)`;
                     page.style.transformOrigin = 'center center';
+                    page.style.transition = 'none';
+                    
+                    // Ensure canvases inside don't have conflicting transforms
+                    const canvas = page.querySelector('canvas');
+                    if (canvas) {
+                        canvas.style.transform = 'none';
+                        canvas.style.maxWidth = 'none';
+                        canvas.style.maxHeight = 'none';
+                    }
                 });
                 
                 // Update cursor
