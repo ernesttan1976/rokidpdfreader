@@ -56,6 +56,7 @@
             justify-content: space-between;
             padding: 0 24px;
             z-index: 1000;
+            transition: opacity 0.3s ease, transform 0.3s ease;
         }
 
         .header-left {
@@ -156,8 +157,8 @@
 
         /* Main Content */
         .main-content {
-            margin-top: 64px;
-            height: calc(100vh - 64px);
+            margin-top: 0;
+            height: 100vh;
             position: relative;
         }
 
@@ -537,7 +538,7 @@
         /* Mode Indicator */
         .mode-indicator {
             position: fixed;
-            top: 80px;
+            top: 16px;
             left: 24px;
             background: rgba(15, 15, 35, 0.7);
             backdrop-filter: blur(20px);
@@ -549,6 +550,7 @@
             display: none;
             align-items: center;
             gap: 8px;
+            z-index: 999;
         }
 
         .mode-indicator.show {
@@ -558,14 +560,15 @@
         /* Settings Panel */
         .settings-panel {
             position: fixed;
-            top: 64px;
+            top: 0;
             right: -420px;
             width: 420px;
-            height: calc(100vh - 64px);
+            height: 100vh;
             background: rgba(15, 15, 35, 0.98);
             backdrop-filter: blur(30px);
             border-left: 1px solid var(--border-color);
             padding: 32px;
+            padding-top: 96px;
             transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 800;
             overflow-y: auto;
@@ -783,7 +786,7 @@
         /* Auto-hide UI elements */
         .ui-element {
             transition: opacity 0.3s ease, transform 0.3s ease;
-            opacity: 0.7;
+            opacity: 0.5;
             pointer-events: auto;
         }
 
@@ -794,8 +797,8 @@
 
         .header.ui-element.hidden {
             opacity: 0;
-            /* Keep the header space but make it invisible */
-            /* Do not use transform: translateY(-100%) */
+            transform: translateY(-100%);
+            pointer-events: none;
         }
 
         .fab.ui-element.hidden {
@@ -818,11 +821,9 @@
             transform: translateX(-20px) scale(0.8);
         }
 
-        /* Fullscreen mode when UI is hidden - do not change layout */
+        /* Fullscreen mode when UI is hidden - layout now always uses full viewport */
         .main-content.fullscreen {
-            /* Keep margin-top to preserve header space */
-            margin-top: 64px;
-            height: calc(100vh - 64px);
+            /* No changes needed - layout is already fullscreen */
         }
 
         /* Show UI on hover/touch areas */
@@ -1207,13 +1208,13 @@
                 
                 this.uiHideTimer = null;
                 this.uiVisible = true;
-                this.UI_HIDE_DELAY = 5000; // 5 seconds
+                this.UI_HIDE_DELAY = 2000; // 2 seconds
                 this.mainContent = document.querySelector('.main-content');
                 
                 // Double tap detection
                 this.lastTapTime = 0;
                 this.tapTimeout = null;
-                this.DOUBLE_TAP_DELAY = 300; // milliseconds
+                this.DOUBLE_TAP_DELAY = 500; // milliseconds
 
                 this.recentFiles = document.getElementById('recentFiles');
                 this.recentList = document.getElementById('recentList');
