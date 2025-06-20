@@ -292,7 +292,7 @@
             display: flex;
             justify-content: center;
             align-items: flex-start;
-            padding: 24px;
+            padding: 24px 24px 120px 24px;
             gap: 24px;
             scroll-behavior: smooth;
         }
@@ -305,8 +305,8 @@
             overflow: auto;
             overflow-x: auto;
             overflow-y: auto;
-            padding: 24px;
-            min-height: 100%;
+            padding: 24px 24px 120px 24px;
+            min-height: calc(100% - 120px);
             width: 100%;
         }
 
@@ -326,8 +326,8 @@
             overflow: auto;
             overflow-x: auto;
             overflow-y: auto;
-            padding: 24px;
-            min-height: 100%;
+            padding: 24px 24px 120px 24px;
+            min-height: calc(100% - 120px);
             width: 100%;
         }
 
@@ -678,7 +678,7 @@
         .hamburger-menu {
             position: fixed;
             top: 16px;
-            left: 16px;
+            right: 16px;
             width: 32px;
             height: 32px;
             background: rgba(15, 15, 35, 0.7);
@@ -756,6 +756,12 @@
             transform: translateX(-20px) scale(0.8);
         }
 
+        /* Fullscreen mode when UI is hidden */
+        .main-content.fullscreen {
+            margin-top: 0;
+            height: 100vh;
+        }
+
         /* Show UI on hover/touch areas */
         .touch-zone {
             position: fixed;
@@ -779,7 +785,7 @@
 
         .touch-zone-hamburger {
             top: 0;
-            left: 0;
+            right: 0;
             width: 80px;
             height: 80px;
         }
@@ -914,7 +920,7 @@
             }
 
             .pdf-container {
-                padding: 16px;
+                padding: 16px 16px 120px 16px;
             }
         }
 
@@ -1114,7 +1120,7 @@
                 this.viewMode = 'portrait';
                 this.zoomLevels = {
                     portrait: 100,
-                    landscape: 75
+                    landscape: 120
                 };
                 this.currentBook = null;
                 this.bookmarks = {};
@@ -1130,6 +1136,12 @@
                 this.uiHideTimer = null;
                 this.uiVisible = true;
                 this.UI_HIDE_DELAY = 5000; // 5 seconds
+                this.mainContent = document.querySelector('.main-content');
+                
+                // Double tap detection
+                this.lastTapTime = 0;
+                this.tapTimeout = null;
+                this.DOUBLE_TAP_DELAY = 300; // milliseconds
 
                 this.recentFiles = document.getElementById('recentFiles');
                 this.recentList = document.getElementById('recentList');
@@ -1353,7 +1365,11 @@
             async renderCurrentPages() {
                 if (!this.currentPDF) return;
                 
-                this.resetTransform(); // Reset zoom and pan when changing pages
+                // Store current transform state
+                const previousScale = this.currentScale;
+                const previousPanX = this.panX;
+                const previousPanY = this.panY;
+                
                 this.pdfContainer.innerHTML = '';
                 
                 if (this.viewMode === 'portrait') {
@@ -1374,6 +1390,12 @@
                         await this.renderPageForLandscape(this.currentPage + 1);
                     }
                 }
+                
+                // Restore transform state
+                this.currentScale = previousScale;
+                this.panX = previousPanX;
+                this.panY = previousPanY;
+                this.applyTransform();
             }
 
             async renderPageForPortrait(pageNum) {
@@ -1457,6 +1479,11 @@
             }
 
             setViewMode(mode) {
+                // Store current transform state
+                const previousScale = this.currentScale;
+                const previousPanX = this.panX;
+                const previousPanY = this.panY;
+                
                 this.viewMode = mode;
                 this.pdfContainer.className = `pdf-container ${mode}-mode`;
                 
@@ -1468,7 +1495,13 @@
                 // Update FAB icon
                 this.fab.textContent = mode === 'portrait' ? '📚' : '📖';
                 
-                this.renderCurrentPages();
+                this.renderCurrentPages().then(() => {
+                    // Restore transform state after rendering
+                    this.currentScale = previousScale;
+                    this.panX = previousPanX;
+                    this.panY = previousPanY;
+                    this.applyTransform();
+                });
             }
 
             previousPage() {
@@ -1735,33 +1768,31 @@
                 // Start hide timer when PDF is loaded
                 this.startUIHideTimer();
                 
-                // Show UI on any interaction
-                document.addEventListener('mousemove', () => this.showUI());
-                document.addEventListener('touchstart', () => this.showUI());
-                document.addEventListener('click', () => this.showUI());
-                this.pdfContainer.addEventListener('scroll', () => this.showUI());
+                // Only show UI on double tap when hidden
+                document.addEventListener('touchstart', (e) => this.handleTouchForUI(e));
+                document.addEventListener('click', (e) => this.handleClickForUI(e));
+                
+                // Keep scroll showing UI for navigation
+                this.pdfContainer.addEventListener('scroll', () => {
+                    if (this.uiVisible) {
+                        this.startUIHideTimer();
+                    }
+                });
             }
 
             createTouchZones() {
-                // Top touch zone
+                // Touch zones are still created but only for structural purposes
+                // They no longer automatically show UI
                 const topZone = document.createElement('div');
                 topZone.className = 'touch-zone touch-zone-top';
-                topZone.addEventListener('mouseenter', () => this.showUI());
-                topZone.addEventListener('touchstart', () => this.showUI());
                 document.body.appendChild(topZone);
                 
-                // Bottom touch zone
                 const bottomZone = document.createElement('div');
                 bottomZone.className = 'touch-zone touch-zone-bottom';
-                bottomZone.addEventListener('mouseenter', () => this.showUI());
-                bottomZone.addEventListener('touchstart', () => this.showUI());
                 document.body.appendChild(bottomZone);
                 
-                // Hamburger touch zone
                 const hamburgerZone = document.createElement('div');
                 hamburgerZone.className = 'touch-zone touch-zone-hamburger';
-                hamburgerZone.addEventListener('mouseenter', () => this.showUI());
-                hamburgerZone.addEventListener('touchstart', () => this.showUI());
                 document.body.appendChild(hamburgerZone);
             }
 
@@ -1773,12 +1804,13 @@
                 // Clear any existing timer
                 clearTimeout(this.uiHideTimer);
                 
-                // Show all UI elements
+                // Show all UI elements and disable fullscreen
                 this.header.classList.remove('hidden');
                 this.hamburgerMenu.classList.remove('hidden');
                 this.fab.classList.remove('hidden');
                 this.navControls.classList.remove('hidden');
                 this.modeIndicator.classList.remove('hidden');
+                this.mainContent.classList.remove('fullscreen');
                 
                 // Restart the hide timer
                 this.startUIHideTimer();
@@ -1789,20 +1821,64 @@
                 
                 this.uiVisible = false;
                 
-                // Hide all UI elements with fade animation
+                // Hide all UI elements with fade animation and enable fullscreen
                 this.header.classList.add('hidden');
                 this.hamburgerMenu.classList.add('hidden');
                 this.fab.classList.add('hidden');
                 this.navControls.classList.add('hidden');
                 this.modeIndicator.classList.add('hidden');
+                this.mainContent.classList.add('fullscreen');
+            }
+
+            handleTouchForUI(e) {
+                if (!this.uiVisible) {
+                    // UI is hidden, check for double tap
+                    this.checkDoubleTap(e);
+                } else {
+                    // UI is visible, restart hide timer
+                    this.startUIHideTimer();
+                }
+            }
+            
+            handleClickForUI(e) {
+                if (!this.uiVisible) {
+                    // UI is hidden, check for double click
+                    this.checkDoubleTap(e);
+                } else {
+                    // UI is visible, restart hide timer  
+                    this.startUIHideTimer();
+                }
+            }
+            
+            checkDoubleTap(e) {
+                const currentTime = new Date().getTime();
+                const timeDiff = currentTime - this.lastTapTime;
+                
+                if (timeDiff < this.DOUBLE_TAP_DELAY && timeDiff > 0) {
+                    // Double tap detected
+                    e.preventDefault();
+                    this.showUI();
+                    clearTimeout(this.tapTimeout);
+                } else {
+                    // First tap or too slow
+                    this.lastTapTime = currentTime;
+                    
+                    // Clear any existing timeout
+                    clearTimeout(this.tapTimeout);
+                    
+                    // Set timeout to reset tap detection
+                    this.tapTimeout = setTimeout(() => {
+                        this.lastTapTime = 0;
+                    }, this.DOUBLE_TAP_DELAY);
+                }
             }
 
             startUIHideTimer() {
                 // Clear any existing timer
                 clearTimeout(this.uiHideTimer);
                 
-                // Don't start timer if settings panel is open
-                if (this.settingsPanel.classList.contains('open')) return;
+                // Don't start timer if settings panel is open or UI is already hidden
+                if (this.settingsPanel.classList.contains('open') || !this.uiVisible) return;
                 
                 // Start new timer
                 this.uiHideTimer = setTimeout(() => {
