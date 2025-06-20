@@ -673,27 +673,66 @@
             line-height: 1.5;
         }
 
-        /* Progress Bar */
-        .progress-bar {
+        /* Scrollbar Navigation */
+        .scrollbar-nav {
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
-            height: 3px;
-            background: rgba(255, 255, 255, 0.1);
-            z-index: 1000;
+            height: 32px;
+            background: rgba(15, 15, 35, 0.9);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid var(--border-color);
+            padding: 8px 16px;
             display: none;
+            align-items: center;
+            z-index: 1000;
         }
-
-        .progress-fill {
+        
+        .scrollbar-nav.show {
+            display: flex;
+        }
+        
+        .scrollbar-container {
+            flex: 1;
+            position: relative;
+            height: 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            margin: 0 16px;
+            cursor: pointer;
+        }
+        
+        .scrollbar-track {
+            width: 100%;
+            height: 100%;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .scrollbar-thumb {
+            position: absolute;
             height: 100%;
             background: linear-gradient(90deg, var(--accent-color), var(--accent-secondary));
-            width: 0%;
-            transition: width 0.3s ease;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            min-width: 20px;
         }
-
-        .progress-bar.show {
-            display: block;
+        
+        .scrollbar-thumb:hover {
+            background: linear-gradient(90deg, var(--accent-secondary), var(--accent-color));
+            transform: scaleY(1.2);
+        }
+        
+        .page-indicator {
+            font-size: 12px;
+            color: var(--text-muted);
+            min-width: 60px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 4px 8px;
+            border-radius: 8px;
         }
 
         /* Hamburger Menu Styles */
@@ -1126,9 +1165,15 @@
         </div>
     </div>
 
-    <!-- Progress Bar -->
-    <div class="progress-bar" id="progressBar">
-        <div class="progress-fill" id="progressFill"></div>
+    <!-- Scrollbar Navigation -->
+    <div class="scrollbar-nav" id="scrollbarNav">
+        <div class="page-indicator" id="pageIndicatorLeft">1 / 1</div>
+        <div class="scrollbar-container" id="scrollbarContainer">
+            <div class="scrollbar-track">
+                <div class="scrollbar-thumb" id="scrollbarThumb"></div>
+            </div>
+        </div>
+        <div class="page-indicator" id="pageIndicatorRight">Page 1</div>
     </div>
 
     <!-- PDF.js CDN -->
@@ -1215,8 +1260,11 @@
                 this.bookTitle = document.getElementById('bookTitle');
                 this.bookProgress = document.getElementById('bookProgress');
                 this.modeIndicator = document.getElementById('modeIndicator');
-                this.progressBar = document.getElementById('progressBar');
-                this.progressFill = document.getElementById('progressFill');
+                this.scrollbarNav = document.getElementById('scrollbarNav');
+                this.scrollbarContainer = document.getElementById('scrollbarContainer');
+                this.scrollbarThumb = document.getElementById('scrollbarThumb');
+                this.pageIndicatorLeft = document.getElementById('pageIndicatorLeft');
+                this.pageIndicatorRight = document.getElementById('pageIndicatorRight');
                 
                 // Settings controls
                 this.portraitZoom = document.getElementById('portraitZoom');
@@ -1260,6 +1308,10 @@
                 
                 // Keyboard shortcuts
                 document.addEventListener('keydown', (e) => this.handleKeyboard(e));
+                
+                // Scrollbar navigation
+                this.scrollbarContainer.addEventListener('click', (e) => this.handleScrollbarClick(e));
+                this.scrollbarThumb.addEventListener('mousedown', (e) => this.handleScrollbarDrag(e));
                 
                 // Settings button
                 this.settingsBtn.addEventListener('click', (e) => {
@@ -1344,7 +1396,7 @@
                     this.updateBookInfo();
                     this.renderCurrentPages();
                     this.updateNavigation();
-                    this.updateProgress();
+                    this.updateScrollbar();
                     this.saveBookmark();
                     
                 } catch (error) {
@@ -1364,7 +1416,7 @@
                 this.fab.classList.add('show');
                 this.navControls.classList.add('show');
                 this.modeIndicator.classList.add('show');
-                this.progressBar.classList.add('show');
+                this.scrollbarNav.classList.add('show');
                 
                 // Add UI classes for auto-hide and ensure they start visible
                 this.header.classList.add('ui-element');
@@ -1372,6 +1424,7 @@
                 this.fab.classList.add('ui-element');
                 this.navControls.classList.add('ui-element');
                 this.modeIndicator.classList.add('ui-element');
+                this.scrollbarNav.classList.add('ui-element');
                 
                 // Make sure all UI elements start visible
                 this.header.classList.remove('hidden');
@@ -1379,6 +1432,7 @@
                 this.fab.classList.remove('hidden');
                 this.navControls.classList.remove('hidden');
                 this.modeIndicator.classList.remove('hidden');
+                this.scrollbarNav.classList.remove('hidden');
                 
                 this.initializeAutoHide();
                 
@@ -1416,6 +1470,39 @@
                 this.currentScale = previousScale;
                 this.panX = previousPanX;
                 this.panY = previousPanY;
+                this.applyTransform();
+            }
+            
+            async renderCurrentPagesWithoutTransformReset() {
+                if (!this.currentPDF) return;
+                
+                // Preserve current transform state - don't store and restore
+                const currentScale = this.currentScale;
+                const currentPanX = this.panX;
+                const currentPanY = this.panY;
+                
+                this.pdfContainer.innerHTML = '';
+                
+                if (this.viewMode === 'portrait') {
+                    // Portrait mode - render single page with full overflow
+                    this.pdfContainer.style.flexDirection = 'column';
+                    this.pdfContainer.style.justifyContent = 'flex-start';
+                    this.pdfContainer.style.alignItems = 'center';
+                    
+                    await this.renderPageForPortrait(this.currentPage);
+                } else {
+                    // Landscape mode - render two pages on single canvas
+                    this.pdfContainer.style.flexDirection = 'row';
+                    this.pdfContainer.style.justifyContent = 'center';
+                    this.pdfContainer.style.alignItems = 'center';
+                    
+                    await this.renderDualPageCanvas(this.currentPage);
+                }
+                
+                // Keep the current transform state unchanged
+                this.currentScale = currentScale;
+                this.panX = currentPanX;
+                this.panY = currentPanY;
                 this.applyTransform();
             }
 
@@ -1562,18 +1649,18 @@
                 if (this.viewMode === 'portrait') {
                     if (this.currentPage > 1) {
                         this.currentPage--;
-                        this.renderCurrentPages();
+                        this.renderCurrentPagesWithoutTransformReset();
                         this.updateNavigation();
-                        this.updateProgress();
+                        this.updateScrollbar();
                         this.saveBookmark();
                     }
                 } else {
                     // Landscape mode - go back 2 pages
                     if (this.currentPage > 1) {
                         this.currentPage = Math.max(1, this.currentPage - 2);
-                        this.renderCurrentPages();
+                        this.renderCurrentPagesWithoutTransformReset();
                         this.updateNavigation();
-                        this.updateProgress();
+                        this.updateScrollbar();
                         this.saveBookmark();
                     }
                 }
@@ -1583,18 +1670,18 @@
                 if (this.viewMode === 'portrait') {
                     if (this.currentPage < this.totalPages) {
                         this.currentPage++;
-                        this.renderCurrentPages();
+                        this.renderCurrentPagesWithoutTransformReset();
                         this.updateNavigation();
-                        this.updateProgress();
+                        this.updateScrollbar();
                         this.saveBookmark();
                     }
                 } else {
                     // Landscape mode - go forward 2 pages
                     if (this.currentPage < this.totalPages) {
                         this.currentPage = Math.min(this.totalPages, this.currentPage + 2);
-                        this.renderCurrentPages();
+                        this.renderCurrentPagesWithoutTransformReset();
                         this.updateNavigation();
-                        this.updateProgress();
+                        this.updateScrollbar();
                         this.saveBookmark();
                     }
                 }
@@ -1613,9 +1700,88 @@
                 }
             }
 
-            updateProgress() {
-                const progress = (this.currentPage / this.totalPages) * 100;
-                this.progressFill.style.width = `${progress}%`;
+            updateScrollbar() {
+                if (!this.totalPages) return;
+                
+                const progress = (this.currentPage - 1) / (this.totalPages - 1);
+                const thumbWidth = Math.max(20, 100 / this.totalPages); // Minimum 20px, scaled by total pages
+                const maxPosition = 100 - thumbWidth;
+                const thumbPosition = progress * maxPosition;
+                
+                this.scrollbarThumb.style.width = `${thumbWidth}%`;
+                this.scrollbarThumb.style.left = `${thumbPosition}%`;
+                
+                // Update page indicators
+                if (this.viewMode === 'portrait') {
+                    this.pageIndicatorLeft.textContent = `${this.currentPage} / ${this.totalPages}`;
+                    this.pageIndicatorRight.textContent = `Page ${this.currentPage}`;
+                } else {
+                    const endPage = Math.min(this.currentPage + 1, this.totalPages);
+                    this.pageIndicatorLeft.textContent = `${this.currentPage}-${endPage} / ${this.totalPages}`;
+                    this.pageIndicatorRight.textContent = `Pages ${this.currentPage}-${endPage}`;
+                }
+            }
+            
+            handleScrollbarClick(event) {
+                const rect = this.scrollbarContainer.getBoundingClientRect();
+                const clickX = event.clientX - rect.left;
+                const containerWidth = rect.width;
+                const progress = clickX / containerWidth;
+                
+                const targetPage = Math.max(1, Math.min(this.totalPages, Math.round(progress * this.totalPages)));
+                
+                if (this.viewMode === 'landscape') {
+                    // Ensure odd page for landscape mode
+                    this.currentPage = targetPage % 2 === 1 ? targetPage : Math.max(1, targetPage - 1);
+                } else {
+                    this.currentPage = targetPage;
+                }
+                
+                this.renderCurrentPagesWithoutTransformReset();
+                this.updateNavigation();
+                this.updateScrollbar();
+                this.saveBookmark();
+            }
+            
+            handleScrollbarDrag(event) {
+                event.preventDefault();
+                const startX = event.clientX;
+                const rect = this.scrollbarContainer.getBoundingClientRect();
+                const thumbRect = this.scrollbarThumb.getBoundingClientRect();
+                const startLeft = thumbRect.left - rect.left;
+                
+                const onMouseMove = (e) => {
+                    const deltaX = e.clientX - startX;
+                    const newLeft = startLeft + deltaX;
+                    const containerWidth = rect.width;
+                    const thumbWidth = thumbRect.width;
+                    const maxLeft = containerWidth - thumbWidth;
+                    
+                    const clampedLeft = Math.max(0, Math.min(maxLeft, newLeft));
+                    const progress = clampedLeft / maxLeft;
+                    
+                    const targetPage = Math.max(1, Math.min(this.totalPages, Math.round(progress * (this.totalPages - 1)) + 1));
+                    
+                    if (this.viewMode === 'landscape') {
+                        // Ensure odd page for landscape mode
+                        this.currentPage = targetPage % 2 === 1 ? targetPage : Math.max(1, targetPage - 1);
+                    } else {
+                        this.currentPage = targetPage;
+                    }
+                    
+                    this.renderCurrentPagesWithoutTransformReset();
+                    this.updateNavigation();
+                    this.updateScrollbar();
+                };
+                
+                const onMouseUp = () => {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                    this.saveBookmark();
+                };
+                
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
             }
 
             updateBookInfo() {
@@ -1864,6 +2030,7 @@
                 this.fab.classList.remove('hidden');
                 this.navControls.classList.remove('hidden');
                 this.modeIndicator.classList.remove('hidden');
+                this.scrollbarNav.classList.remove('hidden');
                 // Layout remains unchanged
                 
                 // Restart the hide timer
@@ -1881,6 +2048,7 @@
                 this.fab.classList.add('hidden');
                 this.navControls.classList.add('hidden');
                 this.modeIndicator.classList.add('hidden');
+                this.scrollbarNav.classList.add('hidden');
                 // Do not add fullscreen class to preserve header space
             }
 
