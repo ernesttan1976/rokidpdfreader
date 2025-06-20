@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  pdf-reader:
+    build: .
+    ports:
+      - "8640:8640"
+    volumes:
+      - ./index.html:/app/index.html
+      - ./manifest.json:/app/manifest.json
+      - ./sw.js:/app/sw.js
+    restart: unless-stopped

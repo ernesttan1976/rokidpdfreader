@@ -1,0 +1,1857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>PDF Reader Pro - Rokid Edition</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f0f23">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <style>
+        :root {
+            --primary-bg: #0f0f23;
+            --secondary-bg: #1a1a2e;
+            --tertiary-bg: #16213e;
+            --accent-color: #00d4aa;
+            --accent-secondary: #64ffda;
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.8);
+            --text-muted: rgba(255, 255, 255, 0.6);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            --shadow-heavy: 0 16px 64px rgba(0, 0, 0, 0.4);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, var(--primary-bg) 0%, var(--secondary-bg) 50%, var(--tertiary-bg) 100%);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        /* Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 64px;
+            background: rgba(15, 15, 35, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            z-index: 1000;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--accent-color);
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent-color), var(--accent-secondary));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            color: var(--primary-bg);
+        }
+
+        .book-info {
+            display: none;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .book-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            max-width: 300px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .book-progress {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 10px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn.primary {
+            background: linear-gradient(135deg, var(--accent-color), var(--accent-secondary));
+            border: none;
+            color: var(--primary-bg);
+            font-weight: 600;
+        }
+
+        .btn.primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 212, 170, 0.3);
+        }
+
+        .btn-icon {
+            display: none;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-top: 64px;
+            height: calc(100vh - 64px);
+            position: relative;
+        }
+
+        /* Welcome Screen */
+        .welcome-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            text-align: center;
+            padding: 40px;
+            background: radial-gradient(circle at center, rgba(0, 212, 170, 0.1) 0%, transparent 70%);
+        }
+
+        .welcome-hero {
+            max-width: 600px;
+        }
+
+        .welcome-icon {
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, var(--accent-color), var(--accent-secondary));
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            margin: 0 auto 32px;
+            box-shadow: var(--shadow-heavy);
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .welcome-title {
+            font-size: 36px;
+            font-weight: 800;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--text-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .welcome-subtitle {
+            font-size: 18px;
+            color: var(--text-secondary);
+            margin-bottom: 48px;
+            line-height: 1.6;
+        }
+
+        .file-drop-zone {
+            border: 2px dashed rgba(0, 212, 170, 0.3);
+            border-radius: 20px;
+            padding: 48px 32px;
+            background: rgba(0, 212, 170, 0.02);
+            margin-bottom: 32px;
+            transition: all 0.4s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            min-width: 400px;
+        }
+
+        .file-drop-zone::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 212, 170, 0.1), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .file-drop-zone:hover::before {
+            left: 100%;
+        }
+
+        .file-drop-zone:hover {
+            border-color: var(--accent-color);
+            background: rgba(0, 212, 170, 0.05);
+            transform: scale(1.02);
+        }
+
+        .file-drop-zone.dragover {
+            border-color: var(--accent-secondary);
+            background: rgba(100, 255, 218, 0.1);
+            transform: scale(1.05);
+            box-shadow: 0 16px 48px rgba(100, 255, 218, 0.2);
+        }
+
+        .drop-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .drop-icon {
+            font-size: 40px;
+            color: var(--accent-color);
+            margin-bottom: 16px;
+            display: block;
+        }
+
+        .drop-text {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .drop-subtext {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        /* PDF Viewer */
+        .pdf-viewer {
+            display: none;
+            height: 100%;
+            position: relative;
+            background: var(--secondary-bg);
+        }
+
+        .pdf-container {
+            height: 100%;
+            overflow: auto;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 24px;
+            gap: 24px;
+            scroll-behavior: smooth;
+        }
+
+        .pdf-container.portrait-mode {
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .pdf-container.landscape-mode {
+            flex-direction: row;
+            align-items: flex-start;
+        }
+
+        .pdf-page {
+            background: #ffffff;
+            box-shadow: var(--shadow-heavy);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .pdf-container.portrait-mode .pdf-page {
+            max-width: 85%;
+            margin-bottom: 16px;
+        }
+
+        .pdf-container.landscape-mode .pdf-page {
+            max-width: calc(50% - 12px);
+            flex-shrink: 0;
+        }
+
+        .pdf-page canvas {
+            width: 100%;
+            height: auto;
+            border-radius: 12px;
+            display: block;
+        }
+
+        .page-number {
+            position: absolute;
+            bottom: -32px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        /* Loading State */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 15, 35, 0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 500;
+            backdrop-filter: blur(10px);
+        }
+
+        .loading-content {
+            text-align: center;
+        }
+
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 3px solid rgba(0, 212, 170, 0.3);
+            border-top: 3px solid var(--accent-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 16px;
+            color: var(--text-secondary);
+        }
+
+        /* Floating Action Button */
+        .fab {
+            position: fixed;
+            bottom: 32px;
+            right: 32px;
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, var(--accent-color), var(--accent-secondary));
+            border: none;
+            border-radius: 50%;
+            color: var(--primary-bg);
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: var(--shadow-heavy);
+            transition: all 0.3s ease;
+            z-index: 900;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .fab:hover {
+            transform: translateY(-4px) scale(1.05);
+            box-shadow: 0 20px 40px rgba(0, 212, 170, 0.4);
+        }
+
+        .fab:active {
+            transform: translateY(-2px) scale(1.02);
+        }
+
+        .fab.show {
+            display: flex;
+        }
+
+        /* Navigation Controls */
+        .nav-controls {
+            position: fixed;
+            bottom: 32px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 15, 35, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+            border-radius: 50px;
+            padding: 12px 24px;
+            display: none;
+            align-items: center;
+            gap: 16px;
+            z-index: 900;
+        }
+
+        .nav-controls.show {
+            display: flex;
+        }
+
+        .nav-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            padding: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 16px;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .page-info {
+            font-size: 14px;
+            color: var(--text-muted);
+            min-width: 80px;
+            text-align: center;
+        }
+
+        /* Mode Indicator */
+        .mode-indicator {
+            position: fixed;
+            top: 80px;
+            left: 24px;
+            background: rgba(15, 15, 35, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            color: var(--accent-color);
+            display: none;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .mode-indicator.show {
+            display: flex;
+        }
+
+        /* Settings Panel */
+        .settings-panel {
+            position: fixed;
+            top: 64px;
+            right: -420px;
+            width: 420px;
+            height: calc(100vh - 64px);
+            background: rgba(15, 15, 35, 0.98);
+            backdrop-filter: blur(30px);
+            border-left: 1px solid var(--border-color);
+            padding: 32px;
+            transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 800;
+            overflow-y: auto;
+        }
+
+        .settings-panel.open {
+            right: 0;
+        }
+
+        .settings-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 32px;
+        }
+
+        .settings-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--accent-color);
+        }
+
+        .close-settings {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 20px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .close-settings:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+        }
+
+        .setting-group {
+            margin-bottom: 32px;
+        }
+
+        .setting-label {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .setting-control {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 14px 16px;
+            color: var(--text-primary);
+            width: 100%;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .setting-control:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            background: rgba(0, 212, 170, 0.1);
+            box-shadow: 0 0 0 3px rgba(0, 212, 170, 0.1);
+        }
+
+        .zoom-slider {
+            background: var(--border-color);
+            border: none;
+            height: 6px;
+            border-radius: 3px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .zoom-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 212, 170, 0.3);
+        }
+
+        .zoom-value {
+            text-align: center;
+            margin-top: 8px;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            font-weight: 600;
+            color: var(--accent-color);
+        }
+
+        .bookmark-info {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        /* Progress Bar */
+        .progress-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            z-index: 1000;
+            display: none;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-color), var(--accent-secondary));
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-bar.show {
+            display: block;
+        }
+
+        /* Hamburger Menu Styles */
+        .hamburger-menu {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            width: 32px;
+            height: 32px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            z-index: 1100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .hamburger-menu span {
+            width: 20px;
+            height: 2px;
+            background: var(--text-primary);
+            border-radius: 1px;
+            transition: all 0.3s ease;
+        }
+
+        .hamburger-menu:hover span {
+            background: var(--accent-color);
+        }
+
+        .hamburger-menu.active span:nth-child(1) {
+            transform: rotate(45deg) translate(5px, 5px);
+        }
+
+        .hamburger-menu.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .hamburger-menu.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(7px, -6px);
+        }
+
+        /* Auto-hide UI elements */
+        .ui-element {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        .ui-element.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .header.hidden {
+            transform: translateY(-100%);
+        }
+
+        .fab.hidden {
+            transform: translateY(20px) scale(0.8);
+        }
+
+        .nav-controls.hidden {
+            transform: translateY(20px) scale(0.8);
+        }
+
+        .hamburger-menu.hidden {
+            transform: scale(0.8);
+        }
+
+        /* Show UI on hover/touch areas */
+        .touch-zone {
+            position: fixed;
+            z-index: 50;
+            pointer-events: auto;
+        }
+
+        .touch-zone-top {
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 100px;
+        }
+
+        .touch-zone-bottom {
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 120px;
+        }
+
+        .touch-zone-hamburger {
+            top: 0;
+            left: 0;
+            width: 80px;
+            height: 80px;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .header {
+                padding: 0 16px;
+            }
+
+            .header-controls .btn span {
+                display: none;
+            }
+
+            .header-controls .btn-icon {
+                display: block;
+            }
+
+            .welcome-screen {
+                padding: 24px 16px;
+            }
+
+            .welcome-title {
+                font-size: 28px;
+            }
+
+            .file-drop-zone {
+                min-width: auto;
+                padding: 32px 16px;
+            }
+
+            .settings-panel {
+                width: 100%;
+                right: -100%;
+                padding: 24px 16px;
+            }
+
+            .fab {
+                bottom: 24px;
+                right: 24px;
+                width: 56px;
+                height: 56px;
+                font-size: 20px;
+            }
+
+            .nav-controls {
+                bottom: 24px;
+                padding: 8px 16px;
+            }
+
+            .pdf-container {
+                padding: 16px;
+            }
+
+            /* Recent Files Styles */
+            .recent-files {
+                width: 100%;
+                max-width: 600px;
+                margin-bottom: 32px;
+            }
+
+            .recent-title {
+                font-size: 20px;
+                font-weight: 600;
+                color: var(--text-primary);
+                margin-bottom: 16px;
+                text-align: left;
+            }
+
+            .recent-list {
+                display: grid;
+                gap: 12px;
+                max-height: 300px;
+                overflow-y: auto;
+            }
+
+            .recent-item {
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid var(--border-color);
+                border-radius: 12px;
+                padding: 16px;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                display: flex;
+                align-items: center;
+                gap: 16px;
+            }
+
+            .recent-item:hover {
+                background: rgba(255, 255, 255, 0.1);
+                border-color: var(--accent-color);
+                transform: translateY(-2px);
+            }
+
+            .recent-icon {
+                width: 40px;
+                height: 40px;
+                background: linear-gradient(135deg, var(--accent-color), var(--accent-secondary));
+                border-radius: 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 20px;
+                flex-shrink: 0;
+            }
+
+            .recent-info {
+                flex: 1;
+                min-width: 0;
+            }
+
+            .recent-name {
+                font-size: 16px;
+                font-weight: 600;
+                color: var(--text-primary);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                margin-bottom: 4px;
+            }
+
+            .recent-details {
+                font-size: 12px;
+                color: var(--text-muted);
+                display: flex;
+                gap: 12px;
+            }
+
+            .recent-progress {
+                background: var(--accent-color);
+                color: var(--primary-bg);
+                padding: 2px 8px;
+                border-radius: 12px;
+                font-size: 10px;
+                font-weight: 600;
+            }
+        }
+
+        /* Accessibility */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* Focus indicators */
+        .btn:focus-visible,
+        .setting-control:focus-visible {
+            outline: 2px solid var(--accent-color);
+            outline-offset: 2px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <div class="logo">
+                <div class="logo-icon">📖</div>
+                <span>PDF Reader Pro</span>
+            </div>
+            <div class="book-info" id="bookInfo">
+                <div class="book-title" id="bookTitle">No document loaded</div>
+                <div class="book-progress" id="bookProgress">Ready to read</div>
+            </div>
+        </div>
+        
+        <div class="header-controls">
+            <button class="hamburger-menu" id="hamburgerMenu" style="display: none;">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Welcome Screen -->
+        <div class="welcome-screen" id="welcomeScreen">
+            <div class="welcome-hero">
+                <div class="welcome-icon">📚</div>
+                <h1 class="welcome-title">PDF Reader Pro</h1>
+                <p class="welcome-subtitle">
+                    Experience premium PDF reading optimized for AR glasses. Features dual-page landscape mode, 
+                    intelligent bookmarking, and complete privacy with local storage.
+                </p>
+                
+                <div class="recent-files" id="recentFiles" style="display: none;">
+                    <h3 class="recent-title">📚 Recently Opened</h3>
+                    <div class="recent-list" id="recentList">
+                        <!-- Recent files will be populated here -->
+                    </div>
+                </div>
+
+                <div class="file-drop-zone" id="fileDropZone">
+                    <div class="drop-content">
+                        <span class="drop-icon">📄</span>
+                        <div class="drop-text">Drop PDF files here</div>
+                        <div class="drop-subtext">or click to browse your device</div>
+                    </div>
+                </div>
+                
+                <button class="btn primary" id="browseBtn">
+                    <span>📂</span>
+                    <span>Browse Files</span>
+                </button>
+                <input type="file" id="fileInput" accept=".pdf" multiple style="display: none;">
+            </div>
+        </div>
+
+        <!-- PDF Viewer -->
+        <div class="pdf-viewer" id="pdfViewer">
+            <div class="pdf-container portrait-mode" id="pdfContainer">
+                <!-- PDF pages will be rendered here -->
+            </div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="loading-content">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Loading PDF...</div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Floating Action Button -->
+    <button class="fab" id="fab" title="Toggle View Mode">
+        📚
+    </button>
+
+    <!-- Navigation Controls -->
+    <div class="nav-controls" id="navControls">
+        <button class="nav-btn" id="prevBtn" title="Previous Page">◀</button>
+        <div class="page-info" id="pageInfo">1 / 1</div>
+        <button class="nav-btn" id="nextBtn" title="Next Page">▶</button>
+    </div>
+
+    <!-- Mode Indicator -->
+    <div class="mode-indicator" id="modeIndicator">
+        <span>📖</span>
+        <span>Portrait Mode</span>
+    </div>
+
+    <!-- Settings Panel -->
+    <div class="settings-panel" id="settingsPanel">
+        <div class="settings-header">
+            <h2 class="settings-title">⚙️ Settings</h2>
+            <button class="close-settings" id="closeSettings">✕</button>
+        </div>
+        
+        <div class="setting-group">
+            <label class="setting-label">
+                <span>📱</span>
+                <span>Portrait Zoom Level</span>
+            </label>
+            <input type="range" class="setting-control zoom-slider" id="portraitZoom" min="50" max="200" value="100">
+            <div class="zoom-value" id="portraitZoomValue">100%</div>
+        </div>
+
+        <div class="setting-group">
+            <label class="setting-label">
+                <span>📚</span>
+                <span>Landscape Zoom Level</span>
+            </label>
+            <input type="range" class="setting-control zoom-slider" id="landscapeZoom" min="40" max="150" value="75">
+            <div class="zoom-value" id="landscapeZoomValue">75%</div>
+        </div>
+
+        <div class="setting-group">
+            <label class="setting-label">
+                <span>🎯</span>
+                <span>Default View Mode</span>
+            </label>
+            <select class="setting-control" id="defaultMode">
+                <option value="portrait">Portrait (Single Page)</option>
+                <option value="landscape">Landscape (Dual Page)</option>
+            </select>
+        </div>
+
+        <div class="setting-group">
+            <label class="setting-label">
+                <span>🔖</span>
+                <span>Reading Progress</span>
+            </label>
+            <div class="bookmark-info" id="bookmarkInfo">
+                No document loaded
+            </div>
+        </div>
+
+        <div class="setting-group">
+            <label class="setting-label">
+                <span>📊</span>
+                <span>Storage Info</span>
+            </label>
+            <div class="bookmark-info" id="storageInfo">
+                Books saved: 0<br>
+                Total storage: 0 KB
+            </div>
+        </div>
+
+        <div class="setting-group">
+            <button class="btn" id="clearDataBtn" style="width: 100%; background: rgba(255,69,58,0.1); border-color: rgba(255,69,58,0.3); color: #ff453a;">
+                <span>🗑️</span>
+                <span>Clear All Data</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="progress-bar" id="progressBar">
+        <div class="progress-fill" id="progressFill"></div>
+    </div>
+
+    <!-- PDF.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    
+    <script>
+        // PDF Reader Application
+        class PDFReaderPro {
+            constructor() {
+                this.currentPDF = null;
+                this.currentPage = 1;
+                this.totalPages = 0;
+                this.viewMode = 'portrait';
+                this.zoomLevels = {
+                    portrait: 100,
+                    landscape: 75
+                };
+                this.currentBook = null;
+                this.bookmarks = {};
+                
+                this.initializeElements();
+                this.bindEvents();
+                this.loadSettings();
+                this.updateStorageInfo();
+                
+                // Initialize PDF.js
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                
+                this.uiHideTimer = null;
+                this.uiVisible = true;
+                this.UI_HIDE_DELAY = 5000; // 5 seconds
+
+                this.recentFiles = document.getElementById('recentFiles');
+                this.recentList = document.getElementById('recentList');
+
+                this.updateRecentFiles();
+
+                this.isZooming = false;
+                this.isPanning = false;
+                this.lastTouchDistance = 0;
+                this.currentScale = 1;
+                this.panX = 0;
+                this.panY = 0;
+                this.lastPanX = 0;
+                this.lastPanY = 0;
+
+
+            }
+
+            initializeElements() {
+                // Main elements
+                this.welcomeScreen = document.getElementById('welcomeScreen');
+                this.pdfViewer = document.getElementById('pdfViewer');
+                this.pdfContainer = document.getElementById('pdfContainer');
+                this.loadingOverlay = document.getElementById('loadingOverlay');
+                
+                // Controls
+                this.fileInput = document.getElementById('fileInput');
+                this.fileDropZone = document.getElementById('fileDropZone');
+                this.browseBtn = document.getElementById('browseBtn');
+                this.fab = document.getElementById('fab');
+
+                this.hamburgerMenu = document.getElementById('hamburgerMenu');
+                this.header = document.querySelector('.header'); // Add this line
+                this.settingsBtn = document.getElementById('settingsBtn');
+                this.settingsPanel = document.getElementById('settingsPanel');
+                this.closeSettings = document.getElementById('closeSettings');
+                
+                // Navigation
+                this.navControls = document.getElementById('navControls');
+                this.prevBtn = document.getElementById('prevBtn');
+                this.nextBtn = document.getElementById('nextBtn');
+                this.pageInfo = document.getElementById('pageInfo');
+                
+                // Info displays
+                this.bookInfo = document.getElementById('bookInfo');
+                this.bookTitle = document.getElementById('bookTitle');
+                this.bookProgress = document.getElementById('bookProgress');
+                this.modeIndicator = document.getElementById('modeIndicator');
+                this.progressBar = document.getElementById('progressBar');
+                this.progressFill = document.getElementById('progressFill');
+                
+                // Settings controls
+                this.portraitZoom = document.getElementById('portraitZoom');
+                this.landscapeZoom = document.getElementById('landscapeZoom');
+                this.portraitZoomValue = document.getElementById('portraitZoomValue');
+                this.landscapeZoomValue = document.getElementById('landscapeZoomValue');
+                this.defaultMode = document.getElementById('defaultMode');
+                this.bookmarkInfo = document.getElementById('bookmarkInfo');
+                this.storageInfo = document.getElementById('storageInfo');
+                this.clearDataBtn = document.getElementById('clearDataBtn');
+            }
+
+            bindEvents() {
+                // File handling
+                this.browseBtn.addEventListener('click', () => this.fileInput.click());
+                this.fileInput.addEventListener('change', (e) => this.handleFileSelect(e));
+                this.fileDropZone.addEventListener('click', () => this.fileInput.click());
+                
+                // Drag and drop
+                this.fileDropZone.addEventListener('dragover', (e) => this.handleDragOver(e));
+                this.fileDropZone.addEventListener('dragleave', (e) => this.handleDragLeave(e));
+                this.fileDropZone.addEventListener('drop', (e) => this.handleDrop(e));
+                
+                // Controls
+                this.fab.addEventListener('click', () => this.toggleViewMode());
+                this.hamburgerMenu = document.getElementById('hamburgerMenu');
+                this.hamburgerMenu.addEventListener('click', () => this.toggleSettings());
+                this.closeSettings.addEventListener('click', () => this.closeSettingsPanel());
+                
+                // Navigation
+                this.prevBtn.addEventListener('click', () => this.previousPage());
+                this.nextBtn.addEventListener('click', () => this.nextPage());
+                
+                // Settings
+                this.portraitZoom.addEventListener('input', (e) => this.updateZoom('portrait', e.target.value));
+                this.landscapeZoom.addEventListener('input', (e) => this.updateZoom('landscape', e.target.value));
+                this.defaultMode.addEventListener('change', (e) => this.setDefaultMode(e.target.value));
+                this.clearDataBtn.addEventListener('click', () => this.clearAllData());
+                
+                // Keyboard shortcuts
+                document.addEventListener('keydown', (e) => this.handleKeyboard(e));
+                
+                // Close settings when clicking outside
+                document.addEventListener('click', (e) => {
+                    if (!this.settingsPanel.contains(e.target) && e.target !== this.settingsBtn) {
+                        this.closeSettingsPanel();
+                    }
+                });
+
+                this.pdfContainer.addEventListener('touchstart', (e) => this.handleTouchStart(e));
+                this.pdfContainer.addEventListener('touchmove', (e) => this.handleTouchMove(e));
+                this.pdfContainer.addEventListener('touchend', (e) => this.handleTouchEnd(e));
+                
+                // Mouse events for pan (desktop)
+                this.pdfContainer.addEventListener('mousedown', (e) => this.handleMouseDown(e));
+                this.pdfContainer.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+                this.pdfContainer.addEventListener('mouseup', (e) => this.handleMouseUp(e));
+                
+                // Prevent default zoom behavior
+                this.pdfContainer.addEventListener('wheel', (e) => this.handleWheel(e));
+            }
+
+            handleFileSelect(event) {
+                const files = Array.from(event.target.files);
+                if (files.length > 0) {
+                    this.loadPDF(files[0]);
+                }
+            }
+
+            handleDragOver(event) {
+                event.preventDefault();
+                this.fileDropZone.classList.add('dragover');
+            }
+
+            handleDragLeave(event) {
+                event.preventDefault();
+                this.fileDropZone.classList.remove('dragover');
+            }
+
+            handleDrop(event) {
+                event.preventDefault();
+                this.fileDropZone.classList.remove('dragover');
+                
+                const files = Array.from(event.dataTransfer.files);
+                const pdfFiles = files.filter(file => file.type === 'application/pdf');
+                
+                if (pdfFiles.length > 0) {
+                    this.loadPDF(pdfFiles[0]);
+                }
+            }
+
+            async loadPDF(file) {
+                try {
+                    this.showLoading(true);
+                    
+                    const arrayBuffer = await file.arrayBuffer();
+                    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                    
+                    this.currentPDF = pdf;
+                    this.totalPages = pdf.numPages;
+                    this.currentBook = {
+                        name: file.name,
+                        size: file.size,
+                        lastModified: file.lastModified
+                    };
+                    
+                    // Load bookmark or start from beginning
+                    const bookmark = this.loadBookmark(file.name);
+                    this.currentPage = bookmark ? bookmark.page : 1;
+                    
+                    // Update UI
+                    this.showPDFViewer();
+                    this.updateBookInfo();
+                    this.renderCurrentPages();
+                    this.updateNavigation();
+                    this.updateProgress();
+                    this.saveBookmark();
+                    
+                } catch (error) {
+                    console.error('Error loading PDF:', error);
+                    this.showError('Failed to load PDF file');
+                } finally {
+                    this.showLoading(false);
+                }
+            }
+
+            showPDFViewer() {
+                this.welcomeScreen.style.display = 'none';
+                this.pdfViewer.style.display = 'block';
+                this.bookInfo.style.display = 'flex';
+                this.hamburgerMenu.style.display = 'flex';
+                this.fab.classList.add('show');
+                this.navControls.classList.add('show');
+                this.modeIndicator.classList.add('show');
+                this.progressBar.classList.add('show');
+                
+                // Add UI classes for auto-hide
+                this.header.classList.add('ui-element');
+                this.hamburgerMenu.classList.add('ui-element');
+                this.fab.classList.add('ui-element');
+                this.navControls.classList.add('ui-element');
+                this.modeIndicator.classList.add('ui-element');
+                
+                this.initializeAutoHide();
+                
+                const savedMode = localStorage.getItem('defaultViewMode') || 'portrait';
+                this.setViewMode(savedMode);
+            }
+
+            async renderCurrentPages() {
+                if (!this.currentPDF) return;
+                
+                this.resetTransform(); // Reset zoom and pan when changing pages
+                this.pdfContainer.innerHTML = '';
+                
+                if (this.viewMode === 'portrait') {
+                    await this.renderPage(this.currentPage);
+                } else {
+                    await this.renderPage(this.currentPage);
+                    if (this.currentPage < this.totalPages) {
+                        await this.renderPage(this.currentPage + 1);
+                    }
+                }
+            }
+
+            async renderPage(pageNum) {
+                if (pageNum < 1 || pageNum > this.totalPages) return;
+                
+                try {
+                    const page = await this.currentPDF.getPage(pageNum);
+                    const scale = this.zoomLevels[this.viewMode] / 100;
+                    const viewport = page.getViewport({ scale });
+                    
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    
+                    const pageContainer = document.createElement('div');
+                    pageContainer.className = 'pdf-page';
+                    
+                    const pageNumber = document.createElement('div');
+                    pageNumber.className = 'page-number';
+                    pageNumber.textContent = pageNum;
+                    
+                    pageContainer.appendChild(canvas);
+                    pageContainer.appendChild(pageNumber);
+                    this.pdfContainer.appendChild(pageContainer);
+                    
+                    await page.render({
+                        canvasContext: context,
+                        viewport: viewport
+                    }).promise;
+                    
+                } catch (error) {
+                    console.error('Error rendering page:', error);
+                }
+            }
+
+            toggleViewMode() {
+                const newMode = this.viewMode === 'portrait' ? 'landscape' : 'portrait';
+                this.setViewMode(newMode);
+            }
+
+            setViewMode(mode) {
+                this.viewMode = mode;
+                this.pdfContainer.className = `pdf-container ${mode}-mode`;
+                
+                // Update mode indicator
+                const icon = mode === 'portrait' ? '📖' : '📚';
+                const text = mode === 'portrait' ? 'Portrait Mode' : 'Landscape Mode';
+                this.modeIndicator.innerHTML = `<span>${icon}</span><span>${text}</span>`;
+                
+                // Update FAB icon
+                this.fab.textContent = mode === 'portrait' ? '📚' : '📖';
+                
+                this.renderCurrentPages();
+            }
+
+            previousPage() {
+                if (this.viewMode === 'portrait') {
+                    if (this.currentPage > 1) {
+                        this.currentPage--;
+                        this.renderCurrentPages();
+                        this.updateNavigation();
+                        this.updateProgress();
+                        this.saveBookmark();
+                    }
+                } else {
+                    // Landscape mode - go back 2 pages
+                    if (this.currentPage > 1) {
+                        this.currentPage = Math.max(1, this.currentPage - 2);
+                        this.renderCurrentPages();
+                        this.updateNavigation();
+                        this.updateProgress();
+                        this.saveBookmark();
+                    }
+                }
+            }
+
+            nextPage() {
+                if (this.viewMode === 'portrait') {
+                    if (this.currentPage < this.totalPages) {
+                        this.currentPage++;
+                        this.renderCurrentPages();
+                        this.updateNavigation();
+                        this.updateProgress();
+                        this.saveBookmark();
+                    }
+                } else {
+                    // Landscape mode - go forward 2 pages
+                    if (this.currentPage < this.totalPages) {
+                        this.currentPage = Math.min(this.totalPages, this.currentPage + 2);
+                        this.renderCurrentPages();
+                        this.updateNavigation();
+                        this.updateProgress();
+                        this.saveBookmark();
+                    }
+                }
+            }
+
+            updateNavigation() {
+                if (this.viewMode === 'portrait') {
+                    this.pageInfo.textContent = `${this.currentPage} / ${this.totalPages}`;
+                    this.prevBtn.disabled = this.currentPage <= 1;
+                    this.nextBtn.disabled = this.currentPage >= this.totalPages;
+                } else {
+                    const endPage = Math.min(this.currentPage + 1, this.totalPages);
+                    this.pageInfo.textContent = `${this.currentPage}-${endPage} / ${this.totalPages}`;
+                    this.prevBtn.disabled = this.currentPage <= 1;
+                    this.nextBtn.disabled = this.currentPage >= this.totalPages;
+                }
+            }
+
+            updateProgress() {
+                const progress = (this.currentPage / this.totalPages) * 100;
+                this.progressFill.style.width = `${progress}%`;
+            }
+
+            updateBookInfo() {
+                if (this.currentBook) {
+                    this.bookTitle.textContent = this.currentBook.name;
+                    this.bookProgress.textContent = `Page ${this.currentPage} of ${this.totalPages}`;
+                    
+                    // Update bookmark info in settings
+                    this.bookmarkInfo.innerHTML = `
+                        <strong>${this.currentBook.name}</strong><br>
+                        Current page: ${this.currentPage} / ${this.totalPages}<br>
+                        Progress: ${Math.round((this.currentPage / this.totalPages) * 100)}%<br>
+                        File size: ${this.formatFileSize(this.currentBook.size)}
+                    `;
+                }
+            }
+
+            updateZoom(mode, value) {
+                this.zoomLevels[mode] = parseInt(value);
+                
+                if (mode === 'portrait') {
+                    this.portraitZoomValue.textContent = `${value}%`;
+                } else {
+                    this.landscapeZoomValue.textContent = `${value}%`;
+                }
+                
+                // Re-render if current mode changed
+                if (this.viewMode === mode) {
+                    this.renderCurrentPages();
+                }
+                
+                this.saveSettings();
+            }
+
+            setDefaultMode(mode) {
+                localStorage.setItem('defaultViewMode', mode);
+            }
+
+            toggleSettings() {
+                this.settingsPanel.classList.toggle('open');
+            }
+
+            closeSettingsPanel() {
+                this.settingsPanel.classList.remove('open');
+            }
+
+            saveBookmark() {
+                if (this.currentBook) {
+                    const bookmarks = JSON.parse(localStorage.getItem('pdfBookmarks') || '{}');
+                    bookmarks[this.currentBook.name] = {
+                        page: this.currentPage,
+                        totalPages: this.totalPages,
+                        lastRead: new Date().toISOString(),
+                        fileSize: this.currentBook.size
+                    };
+                    localStorage.setItem('pdfBookmarks', JSON.stringify(bookmarks));
+                    this.updateStorageInfo();
+                }
+            }
+
+            loadBookmark(fileName) {
+                const bookmarks = JSON.parse(localStorage.getItem('pdfBookmarks') || '{}');
+                return bookmarks[fileName];
+            }
+
+            saveSettings() {
+                const settings = {
+                    portraitZoom: this.zoomLevels.portrait,
+                    landscapeZoom: this.zoomLevels.landscape
+                };
+                localStorage.setItem('pdfSettings', JSON.stringify(settings));
+            }
+
+            loadSettings() {
+                const settings = JSON.parse(localStorage.getItem('pdfSettings') || '{}');
+                
+                if (settings.portraitZoom) {
+                    this.zoomLevels.portrait = settings.portraitZoom;
+                    this.portraitZoom.value = settings.portraitZoom;
+                    this.portraitZoomValue.textContent = `${settings.portraitZoom}%`;
+                }
+                
+                if (settings.landscapeZoom) {
+                    this.zoomLevels.landscape = settings.landscapeZoom;
+                    this.landscapeZoom.value = settings.landscapeZoom;
+                    this.landscapeZoomValue.textContent = `${settings.landscapeZoom}%`;
+                }
+                
+                const defaultMode = localStorage.getItem('defaultViewMode') || 'portrait';
+                this.defaultMode.value = defaultMode;
+            }
+
+            updateStorageInfo() {
+                const bookmarks = JSON.parse(localStorage.getItem('pdfBookmarks') || '{}');
+                const bookCount = Object.keys(bookmarks).length;
+                
+                let totalSize = 0;
+                Object.values(bookmarks).forEach(bookmark => {
+                    totalSize += bookmark.fileSize || 0;
+                });
+                
+                this.storageInfo.innerHTML = `
+                    Books saved: ${bookCount}<br>
+                    Estimated storage: ${this.formatFileSize(totalSize)}
+                `;
+            }
+
+            clearAllData() {
+                if (confirm('Are you sure you want to clear all bookmarks and settings? This cannot be undone.')) {
+                    localStorage.removeItem('pdfBookmarks');
+                    localStorage.removeItem('pdfSettings');
+                    localStorage.removeItem('defaultViewMode');
+                    
+                    this.updateStorageInfo();
+                    this.loadSettings();
+                    
+                    // Reset current session
+                    this.welcomeScreen.style.display = 'flex';
+                    this.pdfViewer.style.display = 'none';
+                    this.bookInfo.style.display = 'none';
+                    this.settingsBtn.style.display = 'none';
+                    this.fab.classList.remove('show');
+                    this.navControls.classList.remove('show');
+                    this.modeIndicator.classList.remove('show');
+                    this.progressBar.classList.remove('show');
+                    this.closeSettingsPanel();
+                    
+                    this.currentPDF = null;
+                    this.currentBook = null;
+                }
+            }
+
+            handleKeyboard(event) {
+                if (!this.currentPDF) return;
+                
+                switch(event.key) {
+                    case 'ArrowLeft':
+                    case 'ArrowUp':
+                        event.preventDefault();
+                        this.previousPage();
+                        break;
+                    case 'ArrowRight':
+                    case 'ArrowDown':
+                    case ' ':
+                        event.preventDefault();
+                        this.nextPage();
+                        break;
+                    case 'v':
+                        event.preventDefault();
+                        this.toggleViewMode();
+                        break;
+                    case 's':
+                        if (event.ctrlKey || event.metaKey) {
+                            event.preventDefault();
+                            this.toggleSettings();
+                        }
+                        break;
+                    case 'Escape':
+                        this.closeSettingsPanel();
+                        break;
+                }
+            }
+
+            showLoading(show) {
+                this.loadingOverlay.style.display = show ? 'flex' : 'none';
+            }
+
+            showError(message) {
+                alert(`Error: ${message}`);
+            }
+
+            formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+        
+            initializeAutoHide() {
+                // Create touch zones
+                this.createTouchZones();
+                
+                // Start hide timer when PDF is loaded
+                this.startUIHideTimer();
+                
+                // Show UI on any interaction
+                document.addEventListener('mousemove', () => this.showUI());
+                document.addEventListener('touchstart', () => this.showUI());
+                document.addEventListener('click', () => this.showUI());
+                this.pdfContainer.addEventListener('scroll', () => this.showUI());
+            }
+
+            createTouchZones() {
+                // Top touch zone
+                const topZone = document.createElement('div');
+                topZone.className = 'touch-zone touch-zone-top';
+                topZone.addEventListener('mouseenter', () => this.showUI());
+                topZone.addEventListener('touchstart', () => this.showUI());
+                document.body.appendChild(topZone);
+                
+                // Bottom touch zone
+                const bottomZone = document.createElement('div');
+                bottomZone.className = 'touch-zone touch-zone-bottom';
+                bottomZone.addEventListener('mouseenter', () => this.showUI());
+                bottomZone.addEventListener('touchstart', () => this.showUI());
+                document.body.appendChild(bottomZone);
+                
+                // Hamburger touch zone
+                const hamburgerZone = document.createElement('div');
+                hamburgerZone.className = 'touch-zone touch-zone-hamburger';
+                hamburgerZone.addEventListener('mouseenter', () => this.showUI());
+                hamburgerZone.addEventListener('touchstart', () => this.showUI());
+                document.body.appendChild(hamburgerZone);
+            }
+
+            showUI() {
+                if (!this.currentPDF) return;
+                
+                this.uiVisible = true;
+                this.header.classList.remove('hidden');
+                this.hamburgerMenu.classList.remove('hidden');
+                this.fab.classList.remove('hidden');
+                this.navControls.classList.remove('hidden');
+                this.modeIndicator.classList.remove('hidden');
+                
+                this.startUIHideTimer();
+            }
+
+            hideUI() {
+                if (!this.currentPDF || this.settingsPanel.classList.contains('open')) return;
+                
+                this.uiVisible = false;
+                this.header.classList.add('hidden');
+                this.hamburgerMenu.classList.add('hidden');
+                this.fab.classList.add('hidden');
+                this.navControls.classList.add('hidden');
+                this.modeIndicator.classList.add('hidden');
+            }
+
+            startUIHideTimer() {
+                clearTimeout(this.uiHideTimer);
+                this.uiHideTimer = setTimeout(() => {
+                    this.hideUI();
+                }, this.UI_HIDE_DELAY);
+            }
+
+            updateRecentFiles() {
+                const bookmarks = JSON.parse(localStorage.getItem('pdfBookmarks') || '{}');
+                const recentItems = Object.entries(bookmarks)
+                    .sort((a, b) => new Date(b[1].lastRead) - new Date(a[1].lastRead))
+                    .slice(0, 5);
+                
+                if (recentItems.length === 0) {
+                    this.recentFiles.style.display = 'none';
+                    return;
+                }
+                
+                this.recentFiles.style.display = 'block';
+                this.recentList.innerHTML = '';
+                
+                recentItems.forEach(([fileName, bookmark]) => {
+                    const progress = Math.round((bookmark.page / bookmark.totalPages) * 100);
+                    const timeAgo = this.getTimeAgo(new Date(bookmark.lastRead));
+                    
+                    const recentItem = document.createElement('div');
+                    recentItem.className = 'recent-item';
+                    recentItem.innerHTML = `
+                        <div class="recent-icon">📄</div>
+                        <div class="recent-info">
+                            <div class="recent-name">${fileName}</div>
+                            <div class="recent-details">
+                                <span>Page ${bookmark.page}/${bookmark.totalPages}</span>
+                                <span>${timeAgo}</span>
+                                <span class="recent-progress">${progress}%</span>
+                            </div>
+                        </div>
+                    `;
+                    
+                    recentItem.addEventListener('click', () => {
+                        // Trigger file input to reopen the file
+                        this.fileInput.click();
+                    });
+                    
+                    this.recentList.appendChild(recentItem);
+                });
+            }
+
+            getTimeAgo(date) {
+                const now = new Date();
+                const diff = now - date;
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const hours = Math.floor(diff / (1000 * 60 * 60));
+                const minutes = Math.floor(diff / (1000 * 60));
+                
+                if (days > 0) return `${days}d ago`;
+                if (hours > 0) return `${hours}h ago`;
+                if (minutes > 0) return `${minutes}m ago`;
+                return 'Just now';
+            }
+
+
+            // Update saveBookmark to refresh recent files
+            saveBookmark() {
+                if (this.currentBook) {
+                    const bookmarks = JSON.parse(localStorage.getItem('pdfBookmarks') || '{}');
+                    bookmarks[this.currentBook.name] = {
+                        page: this.currentPage,
+                        totalPages: this.totalPages,
+                        lastRead: new Date().toISOString(),
+                        fileSize: this.currentBook.size
+                    };
+                    localStorage.setItem('pdfBookmarks', JSON.stringify(bookmarks));
+                    this.updateStorageInfo();
+                    this.updateRecentFiles();
+                }
+            }
+
+            handleTouchStart(e) {
+                if (e.touches.length === 2) {
+                    e.preventDefault();
+                    this.isZooming = true;
+                    this.lastTouchDistance = this.getTouchDistance(e.touches);
+                } else if (e.touches.length === 1) {
+                    this.isPanning = true;
+                    this.lastPanX = e.touches[0].clientX;
+                    this.lastPanY = e.touches[0].clientY;
+                }
+                this.showUI(); // Show UI on touch
+            }
+
+            handleTouchMove(e) {
+                if (this.isZooming && e.touches.length === 2) {
+                    e.preventDefault();
+                    const currentDistance = this.getTouchDistance(e.touches);
+                    const scale = currentDistance / this.lastTouchDistance;
+                    this.adjustZoom(scale);
+                    this.lastTouchDistance = currentDistance;
+                } else if (this.isPanning && e.touches.length === 1) {
+                    e.preventDefault();
+                    const deltaX = e.touches[0].clientX - this.lastPanX;
+                    const deltaY = e.touches[0].clientY - this.lastPanY;
+                    this.adjustPan(deltaX, deltaY);
+                    this.lastPanX = e.touches[0].clientX;
+                    this.lastPanY = e.touches[0].clientY;
+                }
+            }
+
+            handleTouchEnd(e) {
+                if (e.touches.length < 2) {
+                    this.isZooming = false;
+                }
+                if (e.touches.length === 0) {
+                    this.isPanning = false;
+                }
+            }
+
+            // Mouse events for desktop pan
+            handleMouseDown(e) {
+                if (e.button === 0 && this.currentScale > 1) { // Left mouse button
+                    this.isPanning = true;
+                    this.lastPanX = e.clientX;
+                    this.lastPanY = e.clientY;
+                    this.pdfContainer.style.cursor = 'grabbing';
+                    e.preventDefault();
+                }
+            }
+
+            handleMouseMove(e) {
+                if (this.isPanning && this.currentScale > 1) {
+                    e.preventDefault();
+                    const deltaX = e.clientX - this.lastPanX;
+                    const deltaY = e.clientY - this.lastPanY;
+                    this.adjustPan(deltaX, deltaY);
+                    this.lastPanX = e.clientX;
+                    this.lastPanY = e.clientY;
+                }
+            }
+
+            handleMouseUp(e) {
+                if (this.isPanning) {
+                    this.isPanning = false;
+                    this.pdfContainer.style.cursor = this.currentScale > 1 ? 'grab' : 'default';
+                }
+            }
+
+            handleWheel(e) {
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    const scale = e.deltaY > 0 ? 0.9 : 1.1;
+                    this.adjustZoom(scale);
+                }
+            }
+
+            // Utility methods
+            getTouchDistance(touches) {
+                const dx = touches[0].clientX - touches[1].clientX;
+                const dy = touches[0].clientY - touches[1].clientY;
+                return Math.sqrt(dx * dx + dy * dy);
+            }
+
+            adjustZoom(scaleFactor) {
+                const newScale = Math.max(0.5, Math.min(3, this.currentScale * scaleFactor));
+                this.currentScale = newScale;
+                this.applyTransform();
+            }
+
+            adjustPan(deltaX, deltaY) {
+                this.panX += deltaX;
+                this.panY += deltaY;
+                
+                // Constrain panning to reasonable bounds
+                const maxPan = 200 * this.currentScale;
+                this.panX = Math.max(-maxPan, Math.min(maxPan, this.panX));
+                this.panY = Math.max(-maxPan, Math.min(maxPan, this.panY));
+                
+                this.applyTransform();
+            }
+
+            applyTransform() {
+                const pages = this.pdfContainer.querySelectorAll('.pdf-page');
+                pages.forEach(page => {
+                    page.style.transform = `scale(${this.currentScale}) translate(${this.panX / this.currentScale}px, ${this.panY / this.currentScale}px)`;
+                    page.style.transformOrigin = 'center center';
+                });
+                
+                // Update cursor
+                this.pdfContainer.style.cursor = this.currentScale > 1 ? 'grab' : 'default';
+            }
+
+            resetTransform() {
+                this.currentScale = 1;
+                this.panX = 0;
+                this.panY = 0;
+                this.applyTransform();
+            }
+
+        }
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', () => {
+            new PDFReaderPro();
+        });
+
+        // Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then((registration) => {
+                        console.log('SW registered: ', registration);
+                    })
+                    .catch((registrationError) => {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>
