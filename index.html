@@ -680,6 +680,32 @@
             line-height: 1.5;
         }
 
+        /* Zoom Level Indicator */
+        .zoom-indicator {
+            position: fixed;
+            bottom: 64px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 15, 35, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 8px 16px;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            z-index: 999;
+            font-size: 12px;
+            color: var(--accent-color);
+            font-weight: 600;
+            min-width: 80px;
+            text-align: center;
+        }
+        
+        .zoom-indicator.show {
+            display: flex;
+        }
+
         /* Scrollbar Navigation */
         .scrollbar-nav {
             position: fixed;
@@ -813,6 +839,11 @@
         .nav-controls.ui-element.hidden {
             opacity: 0;
             transform: translateY(20px) scale(0.8);
+        }
+        
+        .zoom-indicator.ui-element.hidden {
+            opacity: 0;
+            transform: translateY(20px) scale(0.8) translateX(-50%);
         }
 
         .hamburger-menu.ui-element.hidden {
@@ -1113,8 +1144,8 @@
                 <span>📱</span>
                 <span>Portrait Zoom Level</span>
             </label>
-            <input type="range" class="setting-control zoom-slider" id="portraitZoom" min="50" max="300" value="100">
-            <div class="zoom-value" id="portraitZoomValue">100%</div>
+            <input type="range" class="setting-control zoom-slider" id="portraitZoom" min="50" max="300" value="93">
+            <div class="zoom-value" id="portraitZoomValue">93%</div>
         </div>
 
         <div class="setting-group">
@@ -1122,8 +1153,8 @@
                 <span>📚</span>
                 <span>Landscape Zoom Level</span>
             </label>
-            <input type="range" class="setting-control zoom-slider" id="landscapeZoom" min="40" max="300" value="100">
-            <div class="zoom-value" id="landscapeZoomValue">100%</div>
+            <input type="range" class="setting-control zoom-slider" id="landscapeZoom" min="40" max="300" value="76">
+            <div class="zoom-value" id="landscapeZoomValue">76%</div>
         </div>
 
         <div class="setting-group">
@@ -1187,6 +1218,12 @@
         </div>
     </div>
 
+    <!-- Zoom Level Indicator -->
+    <div class="zoom-indicator" id="zoomIndicator">
+        <span>🔍</span>
+        <span id="zoomIndicatorText">93%</span>
+    </div>
+
     <!-- Scrollbar Navigation -->
     <div class="scrollbar-nav" id="scrollbarNav">
         <div class="page-indicator" id="pageIndicatorLeft">1 / 1</div>
@@ -1210,8 +1247,8 @@
                 this.totalPages = 0;
                 this.viewMode = 'portrait';
                 this.zoomLevels = {
-                    portrait: 100,
-                    landscape: 120
+                    portrait: 93,
+                    landscape: 76
                 };
                 this.currentBook = null;
                 this.bookmarks = {};
@@ -1281,6 +1318,8 @@
                 this.bookTitle = document.getElementById('bookTitle');
                 this.bookProgress = document.getElementById('bookProgress');
                 this.modeIndicator = document.getElementById('modeIndicator');
+                this.zoomIndicator = document.getElementById('zoomIndicator');
+                this.zoomIndicatorText = document.getElementById('zoomIndicatorText');
                 this.scrollbarNav = document.getElementById('scrollbarNav');
                 this.scrollbarContainer = document.getElementById('scrollbarContainer');
                 this.scrollbarThumb = document.getElementById('scrollbarThumb');
@@ -1417,6 +1456,7 @@
                     this.renderCurrentPages();
                     this.updateNavigation();
                     this.updateScrollbar();
+                    this.updateZoomIndicator();
                     this.saveBookmark();
                     
                 } catch (error) {
@@ -1435,6 +1475,7 @@
                 this.fab.classList.add('show');
                 this.navControls.classList.add('show');
                 this.modeIndicator.classList.add('show');
+                this.zoomIndicator.classList.add('show');
                 this.scrollbarNav.classList.add('show');
                 
                 // Add UI classes for auto-hide and ensure they start visible
@@ -1443,6 +1484,7 @@
                 this.fab.classList.add('ui-element');
                 this.navControls.classList.add('ui-element');
                 this.modeIndicator.classList.add('ui-element');
+                this.zoomIndicator.classList.add('ui-element');
                 this.scrollbarNav.classList.add('ui-element');
                 
                 // Make sure all UI elements start visible
@@ -1451,6 +1493,7 @@
                 this.fab.classList.remove('hidden');
                 this.navControls.classList.remove('hidden');
                 this.modeIndicator.classList.remove('hidden');
+                this.zoomIndicator.classList.remove('hidden');
                 this.scrollbarNav.classList.remove('hidden');
                 
                 this.initializeAutoHide();
@@ -1843,12 +1886,24 @@
                     this.landscapeZoomValue.textContent = `${value}%`;
                 }
                 
+                // Update zoom indicator display
+                this.updateZoomIndicator();
+                
                 // Re-render if current mode changed
                 if (this.viewMode === mode) {
                     this.renderCurrentPages();
                 }
                 
                 this.saveSettings();
+            }
+            
+            updateZoomIndicator() {
+                if (this.currentPDF && this.zoomIndicatorText) {
+                    // Show the actual current scale (including pinch zoom) combined with base zoom level
+                    const baseZoom = this.zoomLevels[this.viewMode];
+                    const actualZoom = Math.round(baseZoom * this.currentScale);
+                    this.zoomIndicatorText.textContent = `${actualZoom}%`;
+                }
             }
 
             setDefaultMode(mode) {
@@ -1917,12 +1972,20 @@
                     this.zoomLevels.portrait = settings.portraitZoom;
                     this.portraitZoom.value = settings.portraitZoom;
                     this.portraitZoomValue.textContent = `${settings.portraitZoom}%`;
+                } else {
+                    // Set default if no saved setting
+                    this.portraitZoom.value = 93;
+                    this.portraitZoomValue.textContent = '93%';
                 }
                 
                 if (settings.landscapeZoom) {
                     this.zoomLevels.landscape = settings.landscapeZoom;
                     this.landscapeZoom.value = settings.landscapeZoom;
                     this.landscapeZoomValue.textContent = `${settings.landscapeZoom}%`;
+                } else {
+                    // Set default if no saved setting
+                    this.landscapeZoom.value = 76;
+                    this.landscapeZoomValue.textContent = '76%';
                 }
                 
                 // Load paper transparency setting
@@ -1931,6 +1994,11 @@
                 
                 const defaultMode = localStorage.getItem('defaultViewMode') || 'portrait';
                 this.defaultMode.value = defaultMode;
+                
+                // Update zoom indicator after loading settings
+                if (this.currentPDF) {
+                    this.updateZoomIndicator();
+                }
             }
 
             detectPaperColor(canvas) {
@@ -2034,7 +2102,8 @@
                     this.fab.classList.remove('show');
                     this.navControls.classList.remove('show');
                     this.modeIndicator.classList.remove('show');
-                    this.progressBar.classList.remove('show');
+                    this.zoomIndicator.classList.remove('show');
+                    this.scrollbarNav.classList.remove('show');
                     this.closeSettingsPanel();
                     
                     this.currentPDF = null;
@@ -2138,6 +2207,7 @@
                 this.fab.classList.remove('hidden');
                 this.navControls.classList.remove('hidden');
                 this.modeIndicator.classList.remove('hidden');
+                this.zoomIndicator.classList.remove('hidden');
                 this.scrollbarNav.classList.remove('hidden');
                 // Layout remains unchanged
                 
@@ -2156,6 +2226,7 @@
                 this.fab.classList.add('hidden');
                 this.navControls.classList.add('hidden');
                 this.modeIndicator.classList.add('hidden');
+                this.zoomIndicator.classList.add('hidden');
                 this.scrollbarNav.classList.add('hidden');
                 // Do not add fullscreen class to preserve header space
             }
@@ -2368,6 +2439,7 @@
                 const newScale = Math.max(0.5, Math.min(3, this.currentScale * scaleFactor));
                 this.currentScale = newScale;
                 this.applyTransform();
+                this.updateZoomIndicator(); // Update zoom indicator when pinch zooming
             }
 
             adjustPan(deltaX, deltaY) {
@@ -2424,6 +2496,7 @@
                 this.panX = 0;
                 this.panY = 0;
                 this.applyTransform();
+                this.updateZoomIndicator(); // Update zoom indicator when transform is reset
             }
             
             // Reset transform when switching modes
@@ -2443,6 +2516,9 @@
                 
                 // Update FAB icon
                 this.fab.textContent = mode === 'portrait' ? '📚' : '📖';
+                
+                // Update zoom indicator for new mode
+                this.updateZoomIndicator();
                 
                 // Reset transform when switching to landscape mode for proper dual-page handling
                 if (mode === 'landscape') {
